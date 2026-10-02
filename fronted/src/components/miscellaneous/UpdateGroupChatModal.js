@@ -25,7 +25,9 @@ import {
 import { ChatState } from "../../Context/ChatProvider";
 import UserBadgeItem from "../UserAvatar/UserBadgeItem";
 
-// Backend API URL
+// ==========================================
+// BACKEND API URL
+// ==========================================
 const API_URL =
   process.env.REACT_APP_API_URL ||
   "https://mern-chat-app-3oqx.onrender.com";
@@ -247,7 +249,8 @@ const UpdateGroupChatModal = ({
     const alreadyInGroup =
       selectedChat.users?.some(
         (chatUser) =>
-          chatUser._id === userToAdd._id
+          String(chatUser._id) ===
+          String(userToAdd._id)
       );
 
     if (alreadyInGroup) {
@@ -280,6 +283,8 @@ const UpdateGroupChatModal = ({
         },
         config
       );
+
+      console.log("Group after adding user:", data);
 
       updateChatState(data);
 
@@ -332,9 +337,11 @@ const UpdateGroupChatModal = ({
       return;
     }
 
-    // Never send the logged-in user's ID
-    // through the admin remove-user action.
-    if (String(userToRemove._id) === String(user._id)) {
+    // Prevent removing yourself through admin remove action.
+    if (
+      String(userToRemove._id) ===
+      String(user._id)
+    ) {
       toast({
         title: "Use Leave Group",
         description:
@@ -359,6 +366,7 @@ const UpdateGroupChatModal = ({
       };
 
       console.log("Removing group member:", {
+        API: `${API_URL}/api/chat/groupremove`,
         chatId: selectedChat._id,
         userId: userToRemove._id,
       });
@@ -372,7 +380,10 @@ const UpdateGroupChatModal = ({
         config
       );
 
-      console.log("Group after removing user:", data);
+      console.log(
+        "Group after removing user:",
+        data
+      );
 
       updateChatState(data);
 
@@ -386,11 +397,16 @@ const UpdateGroupChatModal = ({
         position: "bottom",
       });
     } catch (error) {
-      console.error("Remove User Error:", error);
+      console.error(
+        "Remove User Error:",
+        error
+      );
+
       console.error(
         "Remove User Status:",
         error?.response?.status
       );
+
       console.error(
         "Remove User Response:",
         error?.response?.data
@@ -415,7 +431,11 @@ const UpdateGroupChatModal = ({
   // LEAVE GROUP
   // ==========================================
   const handleLeaveGroup = async () => {
-    if (!selectedChat?._id || !user?._id || !user?.token) {
+    if (
+      !selectedChat?._id ||
+      !user?._id ||
+      !user?.token
+    ) {
       return;
     }
 
@@ -430,6 +450,7 @@ const UpdateGroupChatModal = ({
       };
 
       console.log("Leaving group:", {
+        API: `${API_URL}/api/chat/groupremove`,
         chatId: selectedChat._id,
         userId: user._id,
       });
@@ -443,7 +464,7 @@ const UpdateGroupChatModal = ({
         config
       );
 
-      // Remove the group from chat list
+      // Remove group from chat list
       setChats((currentChats) =>
         Array.isArray(currentChats)
           ? currentChats.filter(
@@ -469,11 +490,16 @@ const UpdateGroupChatModal = ({
         position: "bottom",
       });
     } catch (error) {
-      console.error("Leave Group Error:", error);
+      console.error(
+        "Leave Group Error:",
+        error
+      );
+
       console.error(
         "Leave Group Status:",
         error?.response?.status
       );
+
       console.error(
         "Leave Group Response:",
         error?.response?.data
