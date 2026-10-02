@@ -64,7 +64,7 @@ const API_URL =
       };
 
       const { data } = await axios.get(
-        `${API_URL}/api/user?search=${query}`,
+        `${API_URL}/api/user?search=${encodeURIComponent(query)}`,
         config
       );
 
@@ -148,7 +148,7 @@ const API_URL =
       };
 
       const { data } = await axios.post(
-        "/api/chat/group",
+       `${API_URL}/api/chat/group`,
         {
           name: groupChatName,
           users: JSON.stringify(
