@@ -38,12 +38,7 @@ const GroupChatModal = ({ children }) => {
     process.env.REACT_APP_API_URL ||
     "https://mern-chat-app-3oqx.onrender.com";
 
-  const {
-    user,
-    chats,
-    setChats,
-    setSelectedChat,
-  } = ChatState();
+  const { user, chats, setChats, setSelectedChat } = ChatState();
 
   // ========================================
   // SEARCH USERS
@@ -80,27 +75,22 @@ const GroupChatModal = ({ children }) => {
       };
 
       const { data } = await axios.get(
-        `${API_URL}/api/user?search=${encodeURIComponent(
-          query.trim()
-        )}`,
+        `${API_URL}/api/user?search=${encodeURIComponent(query.trim())}`,
         config
       );
 
-      // IMPORTANT:
-      // API response must be an array for .map()
-      if (Array.isArray(data)) {
-        setSearchResult(data);
-      } else if (Array.isArray(data?.users)) {
-        // Supports { users: [...] } response too
-        setSearchResult(data.users);
-      } else {
-        console.error(
-          "Unexpected user search response:",
-          data
-        );
+      // Normalize API response
+      let users = [];
 
-        setSearchResult([]);
+      if (Array.isArray(data)) {
+        users = data;
+      } else if (Array.isArray(data?.users)) {
+        users = data.users;
+      } else if (Array.isArray(data?.data)) {
+        users = data.data;
       }
+
+      setSearchResult(users);
     } catch (error) {
       console.error("Search Error:", error);
 
@@ -130,27 +120,27 @@ const GroupChatModal = ({ children }) => {
       return;
     }
 
-    // Check duplicate by ID instead of object reference
-    const alreadySelected = selectedUsers.some(
-      (user) => user._id === selectedUser._id
-    );
+    setSelectedUsers((prevUsers) => {
+      const users = Array.isArray(prevUsers) ? prevUsers : [];
 
-    if (alreadySelected) {
-      toast({
-        title: "User already added",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-        position: "bottom",
-      });
+      const alreadySelected = users.some(
+        (user) => user?._id === selectedUser._id
+      );
 
-      return;
-    }
+      if (alreadySelected) {
+        toast({
+          title: "User already added",
+          status: "warning",
+          duration: 3000,
+          isClosable: true,
+          position: "bottom",
+        });
 
-    setSelectedUsers((prev) => [
-      ...prev,
-      selectedUser,
-    ]);
+        return users;
+      }
+
+      return [...users, selectedUser];
+    });
 
     setSearch("");
     setSearchResult([]);
@@ -161,12 +151,16 @@ const GroupChatModal = ({ children }) => {
   // ========================================
 
   const handleDelete = (userToDelete) => {
-    setSelectedUsers((prev) =>
-      prev.filter(
-        (selected) =>
-          selected._id !== userToDelete._id
-      )
-    );
+    if (!userToDelete?._id) return;
+
+    setSelectedUsers((prevUsers) => {
+      const users = Array.isArray(prevUsers) ? prevUsers : [];
+
+      return users.filter(
+        (selectedUser) =>
+          selectedUser?._id !== userToDelete._id
+      );
+    });
   };
 
   // ========================================
@@ -174,7 +168,13 @@ const GroupChatModal = ({ children }) => {
   // ========================================
 
   const handleSubmit = async () => {
-    if (!groupChatName.trim()) {
+    const users = Array.isArray(selectedUsers)
+      ? selectedUsers
+      : [];
+
+    const chatName = groupChatName.trim();
+
+    if (!chatName) {
       toast({
         title: "Please enter a group name",
         status: "warning",
@@ -186,7 +186,7 @@ const GroupChatModal = ({ children }) => {
       return;
     }
 
-    if (selectedUsers.length < 2) {
+    if (users.length < 2) {
       toast({
         title: "Please select at least 2 users",
         status: "warning",
@@ -220,32 +220,72 @@ const GroupChatModal = ({ children }) => {
         },
       };
 
-      const userIds = selectedUsers
+      const userIds = users
         .map((selectedUser) => selectedUser?._id)
         .filter(Boolean);
+
+      if (userIds.length < 2) {
+        toast({
+          title: "Invalid users",
+          description: "Please select at least 2 valid users.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+          position: "top",
+        });
+
+        return;
+      }
 
       const { data } = await axios.post(
         `${API_URL}/api/chat/group`,
         {
-          name: groupChatName.trim(),
+          name: chatName,
           users: JSON.stringify(userIds),
         },
         config
       );
 
-      // Safely update chats
-      setChats((prevChats) => [
-        data,
-        ...(Array.isArray(prevChats)
+      // Validate created chat response
+      if (!data || typeof data !== "object" || !data._id) {
+        console.error("Invalid group chat response:", data);
+
+        toast({
+          title: "Invalid server response",
+          description: "Group chat was not created correctly.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+          position: "bottom",
+        });
+
+        return;
+      }
+
+      // IMPORTANT:
+      // Always keep chats as an array.
+      setChats((prevChats) => {
+        const currentChats = Array.isArray(prevChats)
           ? prevChats
-          : []),
-      ]);
+          : [];
+
+        // Prevent duplicate chat
+        const alreadyExists = currentChats.some(
+          (chat) => chat?._id === data._id
+        );
+
+        if (alreadyExists) {
+          return currentChats;
+        }
+
+        return [data, ...currentChats];
+      });
 
       setSelectedChat(data);
 
       toast({
         title: "Group Chat Created",
-        description: `${groupChatName} has been created successfully`,
+        description: `${chatName} has been created successfully`,
         status: "success",
         duration: 3000,
         isClosable: true,
@@ -262,7 +302,7 @@ const GroupChatModal = ({ children }) => {
     } catch (error) {
       console.error(
         "Create Group Chat Error:",
-        error
+        error?.response?.data || error
       );
 
       toast({
@@ -285,14 +325,31 @@ const GroupChatModal = ({ children }) => {
   // ========================================
 
   const handleClose = () => {
-    if (!loading) {
-      setGroupChatName("");
-      setSelectedUsers([]);
-      setSearch("");
-      setSearchResult([]);
-      onClose();
-    }
+    if (loading) return;
+
+    setGroupChatName("");
+    setSelectedUsers([]);
+    setSearch("");
+    setSearchResult([]);
+
+    onClose();
   };
+
+  // ========================================
+  // SAFE ARRAYS
+  // ========================================
+
+  const safeSelectedUsers = Array.isArray(selectedUsers)
+    ? selectedUsers
+    : [];
+
+  const safeSearchResult = Array.isArray(searchResult)
+    ? searchResult
+    : [];
+
+  // chats is intentionally normalized here too.
+  // This helps detect an invalid ChatProvider state.
+  const safeChats = Array.isArray(chats) ? chats : [];
 
   // ========================================
   // UI
@@ -337,9 +394,7 @@ const GroupChatModal = ({ children }) => {
                 placeholder="Chat Name"
                 value={groupChatName}
                 onChange={(e) =>
-                  setGroupChatName(
-                    e.target.value
-                  )
+                  setGroupChatName(e.target.value)
                 }
               />
             </FormControl>
@@ -353,30 +408,25 @@ const GroupChatModal = ({ children }) => {
               gap={2}
               mb={3}
             >
-              {Array.isArray(selectedUsers) &&
-                selectedUsers.map(
-                  (selectedUser) => (
-                    <Tag
-                      size="md"
-                      key={selectedUser._id}
-                      borderRadius="full"
-                      variant="solid"
-                      colorScheme="blue"
-                    >
-                      <TagLabel>
-                        {selectedUser.name}
-                      </TagLabel>
+              {safeSelectedUsers.map((selectedUser) => (
+                <Tag
+                  size="md"
+                  key={selectedUser?._id}
+                  borderRadius="full"
+                  variant="solid"
+                  colorScheme="blue"
+                >
+                  <TagLabel>
+                    {selectedUser?.name || "Unknown User"}
+                  </TagLabel>
 
-                      <TagCloseButton
-                        onClick={() =>
-                          handleDelete(
-                            selectedUser
-                          )
-                        }
-                      />
-                    </Tag>
-                  )
-                )}
+                  <TagCloseButton
+                    onClick={() =>
+                      handleDelete(selectedUser)
+                    }
+                  />
+                </Tag>
+              ))}
             </Box>
 
             {/* SEARCH USERS */}
@@ -386,9 +436,7 @@ const GroupChatModal = ({ children }) => {
                 placeholder="Add Users eg: Abhi, Adarsh"
                 value={search}
                 onChange={(e) =>
-                  handleSearch(
-                    e.target.value
-                  )
+                  handleSearch(e.target.value)
                 }
               />
             </FormControl>
@@ -404,8 +452,7 @@ const GroupChatModal = ({ children }) => {
             {/* SEARCH RESULTS */}
 
             {!loading &&
-              Array.isArray(searchResult) &&
-              searchResult.length > 0 && (
+              safeSearchResult.length > 0 && (
                 <Box
                   width="100%"
                   mt={2}
@@ -415,35 +462,30 @@ const GroupChatModal = ({ children }) => {
                   maxHeight="180px"
                   overflowY="auto"
                 >
-                  {searchResult.map(
-                    (resultUser) => (
-                      <Box
-                        key={resultUser._id}
-                        p={3}
-                        cursor="pointer"
-                        _hover={{
-                          background:
-                            "gray.100",
-                        }}
-                        onClick={() =>
-                          handleGroup(
-                            resultUser
-                          )
-                        }
-                      >
-                        <Text fontWeight="600">
-                          {resultUser.name}
-                        </Text>
+                  {safeSearchResult.map((resultUser) => (
+                    <Box
+                      key={resultUser?._id}
+                      p={3}
+                      cursor="pointer"
+                      _hover={{
+                        background: "gray.100",
+                      }}
+                      onClick={() =>
+                        handleGroup(resultUser)
+                      }
+                    >
+                      <Text fontWeight="600">
+                        {resultUser?.name || "Unknown User"}
+                      </Text>
 
-                        <Text
-                          fontSize="sm"
-                          color="gray.500"
-                        >
-                          {resultUser.email}
-                        </Text>
-                      </Box>
-                    )
-                  )}
+                      <Text
+                        fontSize="sm"
+                        color="gray.500"
+                      >
+                        {resultUser?.email || ""}
+                      </Text>
+                    </Box>
+                  ))}
                 </Box>
               )}
 
@@ -451,8 +493,7 @@ const GroupChatModal = ({ children }) => {
 
             {!loading &&
               search.trim() &&
-              Array.isArray(searchResult) &&
-              searchResult.length === 0 && (
+              safeSearchResult.length === 0 && (
                 <Text
                   mt={3}
                   fontSize="sm"
