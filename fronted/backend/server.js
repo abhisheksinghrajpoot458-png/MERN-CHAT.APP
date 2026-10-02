@@ -53,7 +53,7 @@ const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
   process.env.FRONTEND_URL,
-  "https://nextchatme.netlify.app/",
+  "https://nextchatme.netlify.app",
 ].filter(Boolean);
 
 console.log("Allowed CORS origins:", allowedOrigins);
