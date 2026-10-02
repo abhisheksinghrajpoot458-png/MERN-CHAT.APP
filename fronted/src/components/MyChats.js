@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import axios from "axios";
 
@@ -23,9 +24,7 @@ const MyChats = ({ fetchAgain }) => {
     chats,
     setChats,
   } = ChatState();
-const API_URL =
-    process.env.REACT_APP_API_URL ||
-    "https://mern-chat-app-3oqx.onrender.com";
+
   const toast = useToast();
 
   // =========================
@@ -45,7 +44,7 @@ const API_URL =
         };
 
         const { data } = await axios.get(
-          `${API_URL}/api/chat`,
+          "/api/chat",
           config
         );
 
