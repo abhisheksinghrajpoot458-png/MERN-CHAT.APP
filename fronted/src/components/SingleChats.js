@@ -1,6 +1,3 @@
-
-
-
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
@@ -57,21 +54,32 @@ import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 
 import io from "socket.io-client";
 
-// ==========================================
-// LOTTIE
-// ==========================================
-
 import Lottie from "react-lottie";
 import typingAnimation from "../animations/typing.json";
 
 // ==========================================
-// CONSTANTS
+// API
 // ==========================================
 
 const API_URL =
-    process.env.REACT_APP_API_URL ||
-    "https://mern-chat-app-3oqx.onrender.com";
-// const ENDPOINT = "http://localhost:5000";
+  process.env.REACT_APP_API_URL ||
+  "https://mern-chat-app-3oqx.onrender.com";
+
+// ==========================================
+// CLOUDINARY / IMAGE URL HELPER
+// ==========================================
+
+const secureUrl = (url) => {
+  if (!url || typeof url !== "string") {
+    return "";
+  }
+
+  return url.replace(/^http:\/\//i, "https://");
+};
+
+// ==========================================
+// CONSTANTS
+// ==========================================
 
 const reactionEmojis = [
   "👍",
@@ -110,6 +118,10 @@ const getId = (value) => {
 
   return String(value);
 };
+
+// ==========================================
+// LAST SEEN
+// ==========================================
 
 const formatLastSeen = (lastSeen) => {
   if (!lastSeen) {
@@ -222,6 +234,10 @@ const SingleChats = ({
   const [presenceByUserId, setPresenceByUserId] =
     useState({});
 
+  // ==========================================
+  // HIDDEN MESSAGE STORAGE
+  // ==========================================
+
   const hiddenMessagesStorageKey =
     user?._id && selectedChat?._id
       ? `hiddenMessages:${getId(user._id)}:${getId(selectedChat._id)}`
@@ -244,7 +260,10 @@ const SingleChats = ({
           : []
       );
     } catch (error) {
-      localStorage.removeItem(hiddenMessagesStorageKey);
+      localStorage.removeItem(
+        hiddenMessagesStorageKey
+      );
+
       setHiddenMessageIds([]);
     }
   }, [hiddenMessagesStorageKey]);
@@ -296,6 +315,7 @@ const SingleChats = ({
   };
 
   const otherUser = getOtherUser();
+
   const otherUserPresence = otherUser
     ? {
         ...otherUser,
@@ -353,14 +373,10 @@ const SingleChats = ({
         "================================"
       );
 
-      // IMPORTANT
       setSocketConnected(true);
 
-      // Register user
-      
       chatSocket.emit("setup", user);
 
-      // Join selected chat
       const currentChatId =
         selectedChatCompare.current?._id;
 
@@ -400,7 +416,7 @@ const SingleChats = ({
     };
 
     // ========================================
-    // SOCKET DISCONNECT
+    // DISCONNECT
     // ========================================
 
     const handleDisconnect = (reason) => {
@@ -455,44 +471,40 @@ const SingleChats = ({
           if (
             currentNotifications.some(
               (notification) =>
-                notification._id === getId(newMessageReceived._id)
+                notification._id ===
+                getId(newMessageReceived._id)
             )
           ) {
             return currentNotifications;
           }
 
-          const notificationChat = newMessageReceived.chat;
-          const senderName = newMessageReceived.sender?.name;
-          const chatName = notificationChat?.isGroupChat
-            ? notificationChat.chatName
-            : senderName;
+          const notificationChat =
+            newMessageReceived.chat;
+
+          const senderName =
+            newMessageReceived.sender?.name;
+
+          const notificationChatName =
+            notificationChat?.isGroupChat
+              ? notificationChat.chatName
+              : senderName;
 
           return [
             {
-              _id: getId(newMessageReceived._id),
+              _id: getId(
+                newMessageReceived._id
+              ),
               chatId: receivedChatId,
               senderName,
-              chatName,
-              content: newMessageReceived.content,
+              chatName:
+                notificationChatName,
+              content:
+                newMessageReceived.content,
             },
             ...currentNotifications,
           ].slice(0, 50);
         });
       }
-
-      console.log(
-        "Received chat:",
-        receivedChatId
-      );
-
-      console.log(
-        "Current chat:",
-        currentChatId
-      );
-
-      // ======================================
-      // MESSAGE FROM CURRENT CHAT
-      // ======================================
 
       if (
         currentChatId &&
@@ -521,12 +533,9 @@ const SingleChats = ({
         );
       }
 
-      // ======================================
-      // REFRESH CHAT LIST
-      // ======================================
-
       if (
-        typeof setfetchAgain === "function"
+        typeof setfetchAgain ===
+        "function"
       ) {
         setfetchAgain(
           (previous) => !previous
@@ -608,7 +617,13 @@ const SingleChats = ({
       );
     };
 
-    const handleIncomingHideForMe = (deletedData) => {
+    // ========================================
+    // HIDE FOR ME
+    // ========================================
+
+    const handleIncomingHideForMe = (
+      deletedData
+    ) => {
       if (
         getId(deletedData?.chatId) !==
           getId(selectedChatCompare.current) ||
@@ -620,7 +635,8 @@ const SingleChats = ({
       setMessages((currentMessages) =>
         currentMessages.filter(
           (message) =>
-            getId(message._id) !== getId(deletedData.messageId)
+            getId(message._id) !==
+            getId(deletedData.messageId)
         )
       );
     };
@@ -662,27 +678,43 @@ const SingleChats = ({
       );
     };
 
+    // ========================================
+    // PRESENCE
+    // ========================================
+
     const updatePresence = (updates) => {
       const presenceList = Array.isArray(updates)
         ? updates
         : [updates];
 
-      setPresenceByUserId((currentPresence) => {
-        const nextPresence = { ...currentPresence };
+      setPresenceByUserId(
+        (currentPresence) => {
+          const nextPresence = {
+            ...currentPresence,
+          };
 
-        presenceList.forEach((presence) => {
-          const userId = getId(presence?.userId);
+          presenceList.forEach(
+            (presence) => {
+              const userId = getId(
+                presence?.userId
+              );
 
-          if (userId) {
-            nextPresence[userId] = {
-              isOnline: Boolean(presence.isOnline),
-              lastSeen: presence.lastSeen || null,
-            };
-          }
-        });
+              if (userId) {
+                nextPresence[userId] = {
+                  isOnline: Boolean(
+                    presence.isOnline
+                  ),
+                  lastSeen:
+                    presence.lastSeen ||
+                    null,
+                };
+              }
+            }
+          );
 
-        return nextPresence;
-      });
+          return nextPresence;
+        }
+      );
     };
 
     // ========================================
@@ -692,10 +724,6 @@ const SingleChats = ({
     const handleTyping = () => {
       setIsTyping(true);
     };
-
-    // ========================================
-    // STOP TYPING
-    // ========================================
 
     const handleStopTyping = () => {
       setIsTyping(false);
@@ -863,10 +891,14 @@ const SingleChats = ({
 
       setSocketConnected(false);
     };
-  }, [user, setfetchAgain, setNotifications]);
+  }, [
+    user,
+    setfetchAgain,
+    setNotifications,
+  ]);
 
   // ==========================================
-  // SELECTED CHAT REF
+  // SELECTED CHAT
   // ==========================================
 
   useEffect(() => {
@@ -876,13 +908,8 @@ const SingleChats = ({
     const nextChatId =
       selectedChat?._id;
 
-    // Update current chat reference
     selectedChatCompare.current =
       selectedChat || null;
-
-    // ========================================
-    // CHAT CHANGE
-    // ========================================
 
     if (
       socketRef.current &&
@@ -890,11 +917,6 @@ const SingleChats = ({
       previousChatId &&
       previousChatId !== nextChatId
     ) {
-      console.log(
-        "Leaving previous chat:",
-        previousChatId
-      );
-
       socketRef.current.emit(
         "stop typing",
         previousChatId
@@ -907,10 +929,6 @@ const SingleChats = ({
     }
 
     setIsTyping(false);
-
-    // ========================================
-    // JOIN NEW CHAT
-    // ========================================
 
     if (
       socketRef.current &&
@@ -930,13 +948,19 @@ const SingleChats = ({
     }
 
     if (nextChatId) {
-      setNotifications((currentNotifications) =>
-        currentNotifications.filter(
-          (notification) => notification.chatId !== nextChatId
-        )
+      setNotifications(
+        (currentNotifications) =>
+          currentNotifications.filter(
+            (notification) =>
+              notification.chatId !==
+              nextChatId
+          )
       );
     }
-  }, [selectedChat, setNotifications]);
+  }, [
+    selectedChat,
+    setNotifications,
+  ]);
 
   // ==========================================
   // FETCH MESSAGES
@@ -955,23 +979,52 @@ const SingleChats = ({
       try {
         setLoading(true);
 
+        const token = user.token;
+
         const config = {
           headers: {
-            Authorization:
-              `Bearer ${user.token}`,
+            Authorization: `Bearer ${token}`,
+            "Content-Type":
+              "application/json",
           },
         };
+
+        const messageUrl =
+          `${API_URL}/api/message/${selectedChat._id}`;
+
+        console.log(
+          "================================"
+        );
 
         console.log(
           "Fetching messages for:",
           selectedChat._id
         );
 
+        console.log(
+          "Message API:",
+          messageUrl
+        );
+
+        console.log(
+          "Token exists:",
+          Boolean(token)
+        );
+
+        console.log(
+          "================================"
+        );
+
         const { data } =
           await axios.get(
-             `${API_URL}/api/message/${selectedChat._id}`,
+            messageUrl,
             config
           );
+
+        console.log(
+          "Messages response:",
+          data
+        );
 
         setMessages(
           Array.isArray(data)
@@ -984,10 +1037,21 @@ const SingleChats = ({
           error
         );
 
+        console.error(
+          "Response status:",
+          error?.response?.status
+        );
+
+        console.error(
+          "Response data:",
+          error?.response?.data
+        );
+
         setMessages([]);
 
         toast({
-          title: "Error Occurred",
+          title:
+            "Error Occurred",
           description:
             error?.response?.data
               ?.message ||
@@ -1040,10 +1104,6 @@ const SingleChats = ({
       return;
     }
 
-    // ========================================
-    // EMPTY INPUT
-    // ========================================
-
     if (!value.trim()) {
       socketRef.current.emit(
         "stop typing",
@@ -1061,18 +1121,10 @@ const SingleChats = ({
       return;
     }
 
-    // ========================================
-    // TYPING
-    // ========================================
-
     socketRef.current.emit(
       "typing",
       selectedChat._id
     );
-
-    // ========================================
-    // CLEAR OLD TIMEOUT
-    // ========================================
 
     if (
       typingTimeoutRef.current
@@ -1081,10 +1133,6 @@ const SingleChats = ({
         typingTimeoutRef.current
       );
     }
-
-    // ========================================
-    // STOP TYPING AFTER 1.2 SEC
-    // ========================================
 
     typingTimeoutRef.current =
       setTimeout(() => {
@@ -1099,15 +1147,25 @@ const SingleChats = ({
   // SEND MESSAGE
   // ==========================================
 
-  const sendMessage = async (messageOptions = {}) => {
+  const sendMessage = async (
+    messageOptions = {}
+  ) => {
     const messageText = (
-      messageOptions.content ?? newMessage
+      messageOptions.content ??
+      newMessage
     ).trim();
-    const messageKind = messageOptions.kind || "text";
-    const messagePayload = messageOptions.payload || null;
+
+    const messageKind =
+      messageOptions.kind ||
+      "text";
+
+    const messagePayload =
+      messageOptions.payload ||
+      null;
 
     if (
-      (!messageText && !messagePayload) ||
+      (!messageText &&
+        !messagePayload) ||
       sending
     ) {
       return;
@@ -1115,7 +1173,8 @@ const SingleChats = ({
 
     if (!selectedChat?._id) {
       toast({
-        title: "No chat selected",
+        title:
+          "No chat selected",
         description:
           "Please select a chat first",
         status: "warning",
@@ -1142,10 +1201,6 @@ const SingleChats = ({
       return;
     }
 
-    // ========================================
-    // STOP TYPING
-    // ========================================
-
     if (
       typingTimeoutRef.current
     ) {
@@ -1159,24 +1214,12 @@ const SingleChats = ({
       selectedChat._id
     );
 
-    // ========================================
-    // REPLY
-    // ========================================
-
     const replyTarget = replyTo;
-
-    // ========================================
-    // OPTIMISTIC ID
-    // ========================================
 
     const optimisticId =
       `pending-${Date.now()}-${Math.random()
         .toString(36)
         .slice(2)}`;
-
-    // ========================================
-    // OPTIMISTIC MESSAGE
-    // ========================================
 
     const optimisticMessage = {
       _id: optimisticId,
@@ -1190,7 +1233,7 @@ const SingleChats = ({
       sender: {
         _id: user._id,
         name: user.name,
-        pic: user.pic,
+        pic: secureUrl(user.pic),
       },
 
       chat: selectedChat,
@@ -1205,20 +1248,12 @@ const SingleChats = ({
       pending: true,
     };
 
-    // ========================================
-    // SHOW IMMEDIATELY
-    // ========================================
-
     setMessages(
       (currentMessages) => [
         ...currentMessages,
         optimisticMessage,
       ]
     );
-
-    // ========================================
-    // CLEAR INPUT
-    // ========================================
 
     setNewMessage("");
 
@@ -1237,24 +1272,22 @@ const SingleChats = ({
         },
       };
 
-      // ======================================
-      // SAVE MESSAGE IN DATABASE
-      // ======================================
-
       console.log(
-        "Sending message to API..."
+        "Sending message to API:",
+        `${API_URL}/api/message`
       );
 
       const { data } =
         await axios.post(
-         `${API_URL}/api/message`,
+          `${API_URL}/api/message`,
           {
             content:
               messageText,
 
             kind: messageKind,
 
-            payload: messagePayload,
+            payload:
+              messagePayload,
 
             chatId:
               selectedChat._id,
@@ -1271,10 +1304,6 @@ const SingleChats = ({
         data
       );
 
-      // ======================================
-      // REPLACE OPTIMISTIC MESSAGE
-      // ======================================
-
       setMessages(
         (currentMessages) =>
           currentMessages.map(
@@ -1286,32 +1315,15 @@ const SingleChats = ({
           )
       );
 
-      // ======================================
-      // ⭐ IMPORTANT REALTIME SOCKET EVENT
-      // ======================================
-
       if (
         socketRef.current &&
         socketRef.current.connected
       ) {
-        console.log(
-          "Emitting new message:",
-          data
-        );
-
         socketRef.current.emit(
           "new message",
           data
         );
-      } else {
-        console.warn(
-          "Socket is not connected. Message saved but realtime event was not sent."
-        );
       }
-
-      // ======================================
-      // UPDATE CHAT LIST
-      // ======================================
 
       if (
         typeof setfetchAgain ===
@@ -1327,9 +1339,10 @@ const SingleChats = ({
         error
       );
 
-      // ======================================
-      // REMOVE OPTIMISTIC MESSAGE
-      // ======================================
+      console.error(
+        "Send response:",
+        error?.response?.data
+      );
 
       setMessages(
         (currentMessages) =>
@@ -1340,16 +1353,13 @@ const SingleChats = ({
           )
       );
 
-      // ======================================
-      // RESTORE INPUT
-      // ======================================
-
       setNewMessage(messageText);
 
       setReplyTo(replyTarget);
 
       toast({
-        title: "Error Occurred",
+        title:
+          "Error Occurred",
         description:
           error?.response?.data
             ?.message ||
@@ -1364,59 +1374,104 @@ const SingleChats = ({
     }
   };
 
-  const uploadAttachment = async (file, fileKind) => {
+  // ==========================================
+  // UPLOAD ATTACHMENT
+  // ==========================================
+
+  const uploadAttachment = async (
+    file,
+    fileKind
+  ) => {
     if (!file) {
       return;
     }
 
-    const maximumBytes = 20 * 1024 * 1024;
+    const maximumBytes =
+      20 * 1024 * 1024;
 
     if (file.size > maximumBytes) {
       toast({
-        title: "File is too large",
-        description: "Choose a file smaller than 20 MB",
+        title:
+          "File is too large",
+        description:
+          "Choose a file smaller than 20 MB",
         status: "warning",
         duration: 4000,
         isClosable: true,
         position: "bottom",
       });
+
       return;
     }
 
     try {
       setUploadingAttachment(true);
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", "chat-app");
+      const formData =
+        new FormData();
 
-      const response = await axios.post(
-        "https://api.cloudinary.com/v1_1/tyo1eclb/auto/upload",
-        formData
+      formData.append(
+        "file",
+        file
       );
 
+      formData.append(
+        "upload_preset",
+        "chat-app"
+      );
+
+      const response =
+        await axios.post(
+          "https://api.cloudinary.com/v1_1/tyo1eclb/auto/upload",
+          formData
+        );
+
+      const uploadedUrl =
+        secureUrl(
+          response.data.secure_url
+        );
+
       await sendMessage({
-        content: file.name,
+        content:
+          file.name,
+
         kind: "file",
+
         payload: {
           fileKind,
-          url: response.data.secure_url,
-          name: file.name,
-          mimeType: file.type,
-          size: file.size,
-          resourceType: response.data.resource_type,
+
+          url: uploadedUrl,
+
+          name:
+            file.name,
+
+          mimeType:
+            file.type,
+
+          size:
+            file.size,
+
+          resourceType:
+            response.data.resource_type,
         },
       });
     } catch (error) {
       toast({
-        title: "Upload failed",
+        title:
+          "Upload failed",
+
         description:
-          error?.response?.data?.error?.message ||
+          error?.response?.data
+            ?.error?.message ||
           error?.message ||
           "Unable to upload this file",
+
         status: "error",
+
         duration: 5000,
+
         isClosable: true,
+
         position: "bottom",
       });
     } finally {
@@ -1424,90 +1479,172 @@ const SingleChats = ({
     }
   };
 
+  // ==========================================
+  // CONTACT
+  // ==========================================
+
   const sendContactCard = () => {
     sendMessage({
-      content: user?.name || "Contact",
+      content:
+        user?.name ||
+        "Contact",
+
       kind: "contact",
+
       payload: {
-        name: user?.name || "Contact",
-        email: user?.email || "",
-        pic: user?.pic || "",
+        name:
+          user?.name ||
+          "Contact",
+
+        email:
+          user?.email ||
+          "",
+
+        pic:
+          secureUrl(
+            user?.pic
+          ),
       },
     });
   };
 
-  const submitAttachmentDialog = () => {
-    if (attachmentDialog === "poll") {
-      const options = pollOptions
-        .map((option) => option.trim())
-        .filter(Boolean)
-        .map((label) => ({ label, votes: [] }));
-      const question = pollQuestion.trim();
+  // ==========================================
+  // ATTACHMENT DIALOG
+  // ==========================================
 
-      if (!question || options.length < 2) {
+  const submitAttachmentDialog = () => {
+    if (
+      attachmentDialog ===
+      "poll"
+    ) {
+      const options =
+        pollOptions
+          .map((option) =>
+            option.trim()
+          )
+          .filter(Boolean)
+          .map((label) => ({
+            label,
+            votes: [],
+          }));
+
+      const question =
+        pollQuestion.trim();
+
+      if (
+        !question ||
+        options.length < 2
+      ) {
         toast({
-          title: "Add a question and at least two options",
+          title:
+            "Add a question and at least two options",
           status: "warning",
           duration: 3000,
           isClosable: true,
           position: "bottom",
         });
+
         return;
       }
 
       sendMessage({
         content: question,
         kind: "poll",
-        payload: { question, options },
+        payload: {
+          question,
+          options,
+        },
       });
+
       setPollQuestion("");
       setPollOptions(["", ""]);
-    } else if (attachmentDialog === "event") {
-      if (!eventTitle.trim() || !eventDate) {
+    }
+
+    else if (
+      attachmentDialog ===
+      "event"
+    ) {
+      if (
+        !eventTitle.trim() ||
+        !eventDate
+      ) {
         toast({
-          title: "Add an event title and date",
+          title:
+            "Add an event title and date",
           status: "warning",
           duration: 3000,
           isClosable: true,
           position: "bottom",
         });
+
         return;
       }
 
       sendMessage({
-        content: eventTitle.trim(),
+        content:
+          eventTitle.trim(),
+
         kind: "event",
+
         payload: {
-          title: eventTitle.trim(),
-          date: eventDate,
-          description: eventDescription.trim(),
+          title:
+            eventTitle.trim(),
+
+          date:
+            eventDate,
+
+          description:
+            eventDescription.trim(),
         },
       });
+
       setEventTitle("");
       setEventDate("");
       setEventDescription("");
-    } else if (attachmentDialog === "catalogue") {
-      if (!catalogueName.trim()) {
+    }
+
+    else if (
+      attachmentDialog ===
+      "catalogue"
+    ) {
+      if (
+        !catalogueName.trim()
+      ) {
         toast({
-          title: "Add a product or service name",
+          title:
+            "Add a product or service name",
           status: "warning",
           duration: 3000,
           isClosable: true,
           position: "bottom",
         });
+
         return;
       }
 
       sendMessage({
-        content: catalogueName.trim(),
+        content:
+          catalogueName.trim(),
+
         kind: "catalogue",
+
         payload: {
-          name: catalogueName.trim(),
-          price: cataloguePrice.trim(),
-          description: catalogueDescription.trim(),
-          imageUrl: catalogueImageUrl.trim(),
+          name:
+            catalogueName.trim(),
+
+          price:
+            cataloguePrice.trim(),
+
+          description:
+            catalogueDescription.trim(),
+
+          imageUrl:
+            secureUrl(
+              catalogueImageUrl.trim()
+            ),
         },
       });
+
       setCatalogueName("");
       setCataloguePrice("");
       setCatalogueDescription("");
@@ -1517,28 +1654,57 @@ const SingleChats = ({
     setAttachmentDialog(null);
   };
 
-  const sendPollVote = async (message, optionIndex) => {
-    try {
-      const { data } = await axios.patch(
-       `${API_URL}/api/message/${message._id}/vote`,
-        { optionIndex },
-        { headers: { Authorization: `Bearer ${user.token}` } }
-      );
+  // ==========================================
+  // POLL VOTE
+  // ==========================================
 
-      setMessages((currentMessages) =>
-        currentMessages.map((currentMessage) =>
-          getId(currentMessage._id) === getId(data._id)
-            ? data
-            : currentMessage
-        )
+  const sendPollVote = async (
+    message,
+    optionIndex
+  ) => {
+    try {
+      const { data } =
+        await axios.patch(
+          `${API_URL}/api/message/${message._id}/vote`,
+          {
+            optionIndex,
+          },
+          {
+            headers: {
+              Authorization:
+                `Bearer ${user.token}`,
+            },
+          }
+        );
+
+      setMessages(
+        (currentMessages) =>
+          currentMessages.map(
+            (currentMessage) =>
+              getId(
+                currentMessage._id
+              ) ===
+              getId(data._id)
+                ? data
+                : currentMessage
+          )
       );
     } catch (error) {
       toast({
-        title: "Vote not saved",
-        description: error?.response?.data?.message || "Please try again",
+        title:
+          "Vote not saved",
+
+        description:
+          error?.response?.data
+            ?.message ||
+          "Please try again",
+
         status: "error",
+
         duration: 3000,
+
         isClosable: true,
+
         position: "bottom",
       });
     }
@@ -1597,10 +1763,6 @@ const SingleChats = ({
 
     let nextReactions;
 
-    // ========================================
-    // REMOVE
-    // ========================================
-
     if (
       existingReaction?.emoji ===
       emoji
@@ -1612,10 +1774,6 @@ const SingleChats = ({
             existingReaction
         );
     }
-
-    // ========================================
-    // CHANGE
-    // ========================================
 
     else if (
       existingReaction
@@ -1633,10 +1791,6 @@ const SingleChats = ({
         );
     }
 
-    // ========================================
-    // ADD
-    // ========================================
-
     else {
       nextReactions = [
         ...previousReactions,
@@ -1653,10 +1807,6 @@ const SingleChats = ({
     setReactingMessageId(
       messageId
     );
-
-    // ========================================
-    // OPTIMISTIC REACTION
-    // ========================================
 
     setMessages(
       (currentMessages) =>
@@ -1684,13 +1834,11 @@ const SingleChats = ({
       const { data } =
         await axios.patch(
           `${API_URL}/api/message/${messageId}/reactions`,
-          { emoji },
+          {
+            emoji,
+          },
           config
         );
-
-      // ======================================
-      // UPDATE LOCAL MESSAGE
-      // ======================================
 
       setMessages(
         (currentMessages) =>
@@ -1703,10 +1851,6 @@ const SingleChats = ({
           )
       );
 
-      // ======================================
-      // SOCKET REACTION
-      // ======================================
-
       if (
         socketRef.current &&
         socketRef.current.connected
@@ -1717,10 +1861,6 @@ const SingleChats = ({
         );
       }
     } catch (error) {
-      // ======================================
-      // RESTORE REACTION
-      // ======================================
-
       setMessages(
         (currentMessages) =>
           currentMessages.map(
@@ -1739,13 +1879,18 @@ const SingleChats = ({
       toast({
         title:
           "Reaction not saved",
+
         description:
           error?.response?.data
             ?.message ||
           "Please try again",
+
         status: "error",
+
         duration: 3000,
+
         isClosable: true,
+
         position: "bottom",
       });
     } finally {
@@ -1756,7 +1901,7 @@ const SingleChats = ({
   };
 
   // ==========================================
-  // COPY MESSAGE
+  // COPY
   // ==========================================
 
   const copyMessage = async (
@@ -1770,21 +1915,38 @@ const SingleChats = ({
       toast({
         title:
           "Message copied",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-        position: "bottom",
+
+        status:
+          "success",
+
+        duration:
+          2000,
+
+        isClosable:
+          true,
+
+        position:
+          "bottom",
       });
     } catch (error) {
       toast({
         title:
           "Could not copy message",
+
         description:
           "Clipboard access is unavailable",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-        position: "bottom",
+
+        status:
+          "error",
+
+        duration:
+          3000,
+
+        isClosable:
+          true,
+
+        position:
+          "bottom",
       });
     }
   };
@@ -1802,64 +1964,89 @@ const SingleChats = ({
     }
 
     try {
-      const { data } = await axios.delete(
-       `${API_URL}/api/message/${messageId}`,
-        {
-          data: { mode },
-          headers: {
-            Authorization:
-              `Bearer ${user.token}`,
-          },
-        }
-      );
+      const { data } =
+        await axios.delete(
+          `${API_URL}/api/message/${messageId}`,
+          {
+            data: {
+              mode,
+            },
 
-      // ======================================
-      // REMOVE LOCALLY
-      // ======================================
+            headers: {
+              Authorization:
+                `Bearer ${user.token}`,
+            },
+          }
+        );
 
       if (mode === "me") {
-        setMessages((currentMessages) =>
-          currentMessages.filter(
-            (message) =>
-              getId(message._id) !== getId(messageId)
-          )
+        setMessages(
+          (currentMessages) =>
+            currentMessages.filter(
+              (message) =>
+                getId(message._id) !==
+                getId(messageId)
+            )
         );
 
-        setHiddenMessageIds((currentIds) => {
-          const messageIdString = getId(messageId);
-          const nextIds = currentIds.includes(messageIdString)
-            ? currentIds
-            : [...currentIds, messageIdString];
+        setHiddenMessageIds(
+          (currentIds) => {
+            const messageIdString =
+              getId(messageId);
 
-          if (hiddenMessagesStorageKey) {
-            localStorage.setItem(
-              hiddenMessagesStorageKey,
-              JSON.stringify(nextIds)
-            );
+            const nextIds =
+              currentIds.includes(
+                messageIdString
+              )
+                ? currentIds
+                : [
+                    ...currentIds,
+                    messageIdString,
+                  ];
+
+            if (
+              hiddenMessagesStorageKey
+            ) {
+              localStorage.setItem(
+                hiddenMessagesStorageKey,
+                JSON.stringify(
+                  nextIds
+                )
+              );
+            }
+
+            return nextIds;
           }
-
-          return nextIds;
-        });
-      } else if (mode === "unsend") {
-        setMessages((currentMessages) =>
-          currentMessages.filter(
-            (message) =>
-              getId(message._id) !== getId(messageId)
-          )
-        );
-      } else if (data?.message) {
-        setMessages((currentMessages) =>
-          currentMessages.map((message) =>
-            getId(message._id) === getId(messageId)
-              ? data.message
-              : message
-          )
         );
       }
 
-      // ======================================
-      // CHAT LIST
-      // ======================================
+      else if (
+        mode === "unsend"
+      ) {
+        setMessages(
+          (currentMessages) =>
+            currentMessages.filter(
+              (message) =>
+                getId(message._id) !==
+                getId(messageId)
+            )
+        );
+      }
+
+      else if (
+        data?.message
+      ) {
+        setMessages(
+          (currentMessages) =>
+            currentMessages.map(
+              (message) =>
+                getId(message._id) ===
+                getId(messageId)
+                  ? data.message
+                  : message
+            )
+        );
+      }
 
       if (
         typeof setfetchAgain ===
@@ -1873,23 +2060,37 @@ const SingleChats = ({
       toast({
         title:
           "Message not deleted",
+
         description:
           error?.response?.data
             ?.message ||
           "Please try again",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-        position: "bottom",
+
+        status:
+          "error",
+
+        duration:
+          3000,
+
+        isClosable:
+          true,
+
+        position:
+          "bottom",
       });
     }
   };
 
-  const deleteMessageForMe = (messageId) =>
-    deleteMessage(messageId, "me");
+  const deleteMessageForMe = (
+    messageId
+  ) =>
+    deleteMessage(
+      messageId,
+      "me"
+    );
 
   // ==========================================
-  // START REPLY
+  // REPLY
   // ==========================================
 
   const startReply = (
@@ -1921,13 +2122,20 @@ const SingleChats = ({
     }
   };
 
-  const visibleMessages = messages.filter(
-    (message) =>
-      !hiddenMessageIds.includes(getId(message._id))
-  );
+  // ==========================================
+  // VISIBLE MESSAGES
+  // ==========================================
+
+  const visibleMessages =
+    messages.filter(
+      (message) =>
+        !hiddenMessageIds.includes(
+          getId(message._id)
+        )
+    );
 
   // ==========================================
-  // NO CHAT SELECTED
+  // NO CHAT
   // ==========================================
 
   if (!selectedChat) {
@@ -1967,9 +2175,7 @@ const SingleChats = ({
       border="1px solid"
       borderColor="gray.200"
     >
-      {/* =====================================
-          HEADER
-      ====================================== */}
+      {/* HEADER */}
 
       <Flex
         alignItems="center"
@@ -1979,8 +2185,6 @@ const SingleChats = ({
         borderColor="gray.200"
         bg="white"
       >
-        {/* MOBILE BACK */}
-
         <IconButton
           display={{
             base: "flex",
@@ -1994,20 +2198,18 @@ const SingleChats = ({
           }
         />
 
-        {/* AVATAR */}
-
         <Avatar
           size="sm"
           name={chatName}
           src={
             !selectedChat.isGroupChat
-              ? otherUser?.pic
+              ? secureUrl(
+                  otherUser?.pic
+                )
               : undefined
           }
           mr={3}
         />
-
-        {/* CHAT INFO */}
 
         <Box minW={0}>
           <Text
@@ -2028,26 +2230,28 @@ const SingleChats = ({
                   selectedChat.users
                     ?.length || 0
                 } members`
-              : otherUser?.email || ""}
+              : otherUser?.email ||
+                ""}
           </Text>
 
-          {!selectedChat.isGroupChat && otherUserPresence && (
-            <Text
-              fontSize="xs"
-              color={
-                otherUserPresence.isOnline
-                  ? "green.600"
-                  : "gray.500"
-              }
-              noOfLines={1}
-            >
-              {otherUserPresence.isOnline
-                ? "Online"
-                : formatLastSeen(otherUserPresence.lastSeen)}
-            </Text>
-          )}
-
-          {/* SOCKET STATUS */}
+          {!selectedChat.isGroupChat &&
+            otherUserPresence && (
+              <Text
+                fontSize="xs"
+                color={
+                  otherUserPresence.isOnline
+                    ? "green.600"
+                    : "gray.500"
+                }
+                noOfLines={1}
+              >
+                {otherUserPresence.isOnline
+                  ? "Online"
+                  : formatLastSeen(
+                      otherUserPresence.lastSeen
+                    )}
+              </Text>
+            )}
 
           <Text
             fontSize="10px"
@@ -2063,8 +2267,6 @@ const SingleChats = ({
               : "Reconnecting..."}
           </Text>
         </Box>
-
-        {/* HEADER ACTION */}
 
         <Box
           ml="auto"
@@ -2100,9 +2302,7 @@ const SingleChats = ({
         </Box>
       </Flex>
 
-      {/* =====================================
-          MESSAGES
-      ====================================== */}
+      {/* MESSAGES */}
 
       <Box
         flex="1"
@@ -2110,8 +2310,6 @@ const SingleChats = ({
         p={4}
         bg="gray.50"
       >
-        {/* LOADING */}
-
         {loading ? (
           <Flex
             height="100%"
@@ -2123,7 +2321,8 @@ const SingleChats = ({
               color="blue.500"
             />
           </Flex>
-        ) : visibleMessages.length === 0 ? (
+        ) : visibleMessages.length ===
+          0 ? (
           <Flex
             height="100%"
             alignItems="center"
@@ -2139,113 +2338,831 @@ const SingleChats = ({
             </Text>
           </Flex>
         ) : (
-          visibleMessages.map((message) => {
-            const isMyMessage =
-              getId(
-                message?.sender
-              ) === getId(user?._id);
+          visibleMessages.map(
+            (message) => {
+              const isMyMessage =
+                getId(
+                  message?.sender
+                ) ===
+                getId(user?._id);
 
-            return (
-              <Flex
-                key={message._id}
-                role="group"
-                width="100%"
-                flexDirection="column"
-                alignItems={
-                  isMyMessage
-                    ? "flex-end"
-                    : "flex-start"
-                }
-                mb={3}
-              >
-                {/* MESSAGE ACTIONS */}
-
+              return (
                 <Flex
-                  alignSelf={
+                  key={message._id}
+                  role="group"
+                  width="100%"
+                  flexDirection="column"
+                  alignItems={
                     isMyMessage
                       ? "flex-end"
                       : "flex-start"
                   }
-                  alignItems="center"
-                  gap={1}
-                  p={1}
-                  bg="white"
-                  border="1px solid"
-                  borderColor="gray.200"
-                  borderRadius="full"
-                  boxShadow="sm"
-                  mb={1}
-                  overflow="hidden"
-                  display={{
-                    base: message.deletedForEveryone || message.unsent
-                      ? "none"
-                      : activeMessageActionsId === message._id
-                        ? "flex"
-                        : "none",
-                    md: message.deletedForEveryone || message.unsent
-                      ? "none"
-                      : "flex",
-                  }}
-                  maxH={{
-                    base: "32px",
-                    md: "0",
-                  }}
-                  opacity={{
-                    base: 1,
-                    md: 0,
-                  }}
-                  pointerEvents="auto"
-                  transition="max-height 140ms ease, opacity 140ms ease"
-                  _groupHover={{
-                    opacity: 1,
-                    maxH: "32px",
-                  }}
-                  _groupFocusWithin={{
-                    opacity: 1,
-                    maxH: "32px",
-                  }}
+                  mb={3}
                 >
-                  {/* REACTION */}
+                  {/* MESSAGE ACTIONS */}
 
-                  <Popover
-                    placement="top"
-                    isLazy
+                  <Flex
+                    alignSelf={
+                      isMyMessage
+                        ? "flex-end"
+                        : "flex-start"
+                    }
+                    alignItems="center"
+                    gap={1}
+                    p={1}
+                    bg="white"
+                    border="1px solid"
+                    borderColor="gray.200"
+                    borderRadius="full"
+                    boxShadow="sm"
+                    mb={1}
+                    overflow="hidden"
+                    display={{
+                      base:
+                        message.deletedForEveryone ||
+                        message.unsent
+                          ? "none"
+                          : activeMessageActionsId ===
+                              message._id
+                            ? "flex"
+                            : "none",
+
+                      md:
+                        message.deletedForEveryone ||
+                        message.unsent
+                          ? "none"
+                          : "flex",
+                    }}
+                    maxH={{
+                      base: "32px",
+                      md: "0",
+                    }}
+                    opacity={{
+                      base: 1,
+                      md: 0,
+                    }}
+                    pointerEvents="auto"
+                    transition="max-height 140ms ease, opacity 140ms ease"
+                    _groupHover={{
+                      opacity: 1,
+                      maxH: "32px",
+                    }}
+                    _groupFocusWithin={{
+                      opacity: 1,
+                      maxH: "32px",
+                    }}
                   >
-                    <PopoverTrigger>
-                      <IconButton
-                        icon={<AddIcon />}
-                        aria-label="Add reaction"
-                        title="Add reaction"
+                    <Popover
+                      placement="top"
+                      isLazy
+                    >
+                      <PopoverTrigger>
+                        <IconButton
+                          icon={<AddIcon />}
+                          aria-label="Add reaction"
+                          title="Add reaction"
+                          variant="ghost"
+                          size="xs"
+                          minW="30px"
+                          h="30px"
+                          isDisabled={
+                            reactingMessageId ===
+                            message._id
+                          }
+                        />
+                      </PopoverTrigger>
+
+                      <PopoverContent
+                        width="auto"
+                        minW="0"
+                      >
+                        <PopoverBody p={1}>
+                          <Flex gap={1}>
+                            {reactionEmojis.map(
+                              (emoji) => (
+                                <Button
+                                  key={emoji}
+                                  type="button"
+                                  aria-label={`React with ${emoji}`}
+                                  title={`React with ${emoji}`}
+                                  variant="ghost"
+                                  size="sm"
+                                  minW="36px"
+                                  h="36px"
+                                  px={1}
+                                  fontSize="lg"
+                                  isDisabled={
+                                    reactingMessageId ===
+                                    message._id
+                                  }
+                                  onClick={() =>
+                                    reactToMessage(
+                                      message._id,
+                                      emoji
+                                    )
+                                  }
+                                >
+                                  {emoji}
+                                </Button>
+                              )
+                            )}
+                          </Flex>
+                        </PopoverBody>
+                      </PopoverContent>
+                    </Popover>
+
+                    <Menu placement="bottom">
+                      <MenuButton
+                        as={IconButton}
+                        icon={
+                          <ChevronDownIcon />
+                        }
+                        aria-label="Message options"
                         variant="ghost"
                         size="xs"
                         minW="30px"
                         h="30px"
-                        isDisabled={
-                          reactingMessageId ===
-                          message._id
-                        }
                       />
-                    </PopoverTrigger>
 
-                    <PopoverContent
-                      width="auto"
-                      minW="0"
-                    >
-                      <PopoverBody p={1}>
-                        <Flex gap={1}>
-                          {reactionEmojis.map(
-                            (emoji) => (
+                      <MenuList fontSize="sm">
+                        <MenuItem
+                          icon={
+                            <ArrowBackIcon />
+                          }
+                          onClick={() =>
+                            startReply(
+                              message
+                            )
+                          }
+                        >
+                          Reply
+                        </MenuItem>
+
+                        <MenuItem
+                          icon={
+                            <CopyIcon />
+                          }
+                          onClick={() =>
+                            copyMessage(
+                              message.content
+                            )
+                          }
+                        >
+                          Copy
+                        </MenuItem>
+
+                        <MenuItem
+                          icon={
+                            <DeleteIcon />
+                          }
+                          onClick={() =>
+                            deleteMessageForMe(
+                              message._id
+                            )
+                          }
+                        >
+                          Delete for me
+                        </MenuItem>
+
+                        {isMyMessage && (
+                          <>
+                            <MenuItem
+                              icon={
+                                <DeleteIcon />
+                              }
+                              color="red.500"
+                              onClick={() =>
+                                deleteMessage(
+                                  message._id,
+                                  "everyone"
+                                )
+                              }
+                            >
+                              Delete for everyone
+                            </MenuItem>
+
+                            <MenuItem
+                              icon={
+                                <DeleteIcon />
+                              }
+                              color="red.600"
+                              onClick={() =>
+                                deleteMessage(
+                                  message._id,
+                                  "unsend"
+                                )
+                              }
+                            >
+                              Unsend
+                            </MenuItem>
+                          </>
+                        )}
+                      </MenuList>
+                    </Menu>
+                  </Flex>
+
+                  {/* MESSAGE BUBBLE */}
+
+                  <Box
+                    onClick={() =>
+                      setActiveMessageActionsId(
+                        (currentId) =>
+                          currentId ===
+                          message._id
+                            ? null
+                            : message._id
+                      )
+                    }
+                    maxWidth={{
+                      base: "80%",
+                      md: "65%",
+                    }}
+                    bg={
+                      isMyMessage
+                        ? "blue.500"
+                        : "white"
+                    }
+                    color={
+                      isMyMessage
+                        ? "white"
+                        : "gray.800"
+                    }
+                    px={4}
+                    py={2}
+                    borderRadius="lg"
+                    boxShadow="sm"
+                    border={
+                      isMyMessage
+                        ? "none"
+                        : "1px solid"
+                    }
+                    borderColor={
+                      isMyMessage
+                        ? "transparent"
+                        : "gray.200"
+                    }
+                  >
+                    {/* REPLY */}
+
+                    {message.replyTo && (
+                      <Box
+                        mb={2}
+                        px={2}
+                        py={1}
+                        borderLeft="3px solid"
+                        borderColor={
+                          isMyMessage
+                            ? "blue.100"
+                            : "blue.400"
+                        }
+                        bg={
+                          isMyMessage
+                            ? "whiteAlpha.200"
+                            : "gray.100"
+                        }
+                        borderRadius="sm"
+                      >
+                        <Text
+                          fontSize="xs"
+                          fontWeight="semibold"
+                          noOfLines={1}
+                        >
+                          {message.replyTo
+                            ?.sender
+                            ?.name ||
+                            "Reply"}
+                        </Text>
+
+                        <Text
+                          fontSize="xs"
+                          noOfLines={2}
+                          opacity={0.85}
+                        >
+                          {
+                            message.replyTo
+                              ?.content
+                          }
+                        </Text>
+                      </Box>
+                    )}
+
+                    {/* GROUP SENDER */}
+
+                    {selectedChat.isGroupChat &&
+                      !isMyMessage &&
+                      message.sender?.name && (
+                        <Text
+                          fontSize="xs"
+                          fontWeight="bold"
+                          mb={1}
+                          color="blue.500"
+                        >
+                          {
+                            message.sender
+                              .name
+                          }
+                        </Text>
+                      )}
+
+                    {/* MESSAGE CONTENT */}
+
+                    {message.unsent ||
+                    message.deletedForEveryone ? (
+                      <Text
+                        fontSize="sm"
+                        fontStyle="italic"
+                        color="gray.500"
+                      >
+                        {message.unsent
+                          ? isMyMessage
+                            ? "You unsent this message"
+                            : "This message was unsent"
+                          : isMyMessage
+                            ? "You deleted this message"
+                            : "This message was deleted"}
+                      </Text>
+                    ) : message.kind ===
+                        "file" &&
+                      message.payload?.url ? (
+                      <Flex
+                        direction="column"
+                        gap={2}
+                      >
+                        {message.payload.mimeType?.startsWith(
+                          "image/"
+                        ) ? (
+                          <Image
+                            src={secureUrl(
+                              message
+                                .payload
+                                .url
+                            )}
+                            alt={
+                              message
+                                .payload
+                                .name ||
+                              "Shared image"
+                            }
+                            maxW="280px"
+                            maxH="280px"
+                            objectFit="cover"
+                            borderRadius="md"
+                          />
+                        ) : message.payload.mimeType?.startsWith(
+                            "video/"
+                          ) ? (
+                          <Box
+                            as="video"
+                            src={secureUrl(
+                              message
+                                .payload
+                                .url
+                            )}
+                            controls
+                            maxW="300px"
+                            borderRadius="md"
+                          />
+                        ) : message.payload.mimeType?.startsWith(
+                            "audio/"
+                          ) ? (
+                          <Box
+                            as="audio"
+                            src={secureUrl(
+                              message
+                                .payload
+                                .url
+                            )}
+                            controls
+                          />
+                        ) : null}
+
+                        <Link
+                          href={secureUrl(
+                            message
+                              .payload
+                              .url
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          color={
+                            isMyMessage
+                              ? "white"
+                              : "blue.600"
+                          }
+                          textDecoration="underline"
+                        >
+                          {message
+                            .payload
+                            .name ||
+                            message.content ||
+                            "Open attachment"}
+                        </Link>
+                      </Flex>
+                    ) : message.kind ===
+                      "contact" ? (
+                      <Flex
+                        alignItems="center"
+                        gap={3}
+                        minW="190px"
+                      >
+                        <Avatar
+                          size="sm"
+                          name={
+                            message
+                              .payload
+                              ?.name ||
+                            "Contact"
+                          }
+                          src={secureUrl(
+                            message
+                              .payload
+                              ?.pic
+                          )}
+                        />
+
+                        <Box minW={0}>
+                          <Text
+                            fontWeight="semibold"
+                            noOfLines={1}
+                          >
+                            {
+                              message
+                                .payload
+                                ?.name ||
+                              "Contact"
+                            }
+                          </Text>
+
+                          <Text
+                            fontSize="xs"
+                            opacity={0.8}
+                            noOfLines={1}
+                          >
+                            {
+                              message
+                                .payload
+                                ?.email ||
+                              ""
+                            }
+                          </Text>
+                        </Box>
+                      </Flex>
+                    ) : message.kind ===
+                      "poll" ? (
+                      <Box minW="220px">
+                        <Text
+                          fontWeight="semibold"
+                          mb={2}
+                        >
+                          {message
+                            .payload
+                            ?.question ||
+                            message.content}
+                        </Text>
+
+                        <Flex
+                          direction="column"
+                          gap={2}
+                        >
+                          {(
+                            message
+                              .payload
+                              ?.options ||
+                            []
+                          ).map(
+                            (
+                              option,
+                              index
+                            ) => {
+                              const votes =
+                                Array.isArray(
+                                  option.votes
+                                )
+                                  ? option.votes
+                                  : [];
+
+                              const selected =
+                                votes.some(
+                                  (
+                                    voterId
+                                  ) =>
+                                    getId(
+                                      voterId
+                                    ) ===
+                                    getId(
+                                      user?._id
+                                    )
+                                );
+
+                              const totalVotes =
+                                (
+                                  message
+                                    .payload
+                                    ?.options ||
+                                  []
+                                ).reduce(
+                                  (
+                                    total,
+                                    pollOption
+                                  ) =>
+                                    total +
+                                    (pollOption
+                                      .votes
+                                      ?.length ||
+                                      0),
+                                  0
+                                );
+
+                              return (
+                                <Button
+                                  key={`${option.label}-${index}`}
+                                  size="sm"
+                                  justifyContent="space-between"
+                                  colorScheme={
+                                    selected
+                                      ? "blue"
+                                      : "gray"
+                                  }
+                                  variant={
+                                    selected
+                                      ? "solid"
+                                      : "outline"
+                                  }
+                                  onClick={() =>
+                                    sendPollVote(
+                                      message,
+                                      index
+                                    )
+                                  }
+                                >
+                                  <Text noOfLines={1}>
+                                    {
+                                      option.label
+                                    }
+                                  </Text>
+
+                                  <Text
+                                    ml={3}
+                                    fontSize="xs"
+                                  >
+                                    {
+                                      votes.length
+                                    }
+                                    {totalVotes
+                                      ? ` / ${totalVotes}`
+                                      : ""}
+                                  </Text>
+                                </Button>
+                              );
+                            }
+                          )}
+                        </Flex>
+                      </Box>
+                    ) : message.kind ===
+                      "event" ? (
+                      <Box minW="200px">
+                        <Flex
+                          alignItems="center"
+                          gap={2}
+                          mb={1}
+                        >
+                          <CalendarIcon />
+
+                          <Text fontWeight="semibold">
+                            {message
+                              .payload
+                              ?.title ||
+                              message.content}
+                          </Text>
+                        </Flex>
+
+                        {message
+                          .payload
+                          ?.date && (
+                          <Text fontSize="xs">
+                            {new Date(
+                              message
+                                .payload
+                                .date
+                            ).toLocaleString()}
+                          </Text>
+                        )}
+
+                        {message
+                          .payload
+                          ?.description && (
+                          <Text
+                            fontSize="sm"
+                            mt={1}
+                          >
+                            {
+                              message
+                                .payload
+                                .description
+                            }
+                          </Text>
+                        )}
+                      </Box>
+                    ) : message.kind ===
+                      "sticker" ? (
+                      <Text
+                        fontSize="5xl"
+                        lineHeight="1.1"
+                      >
+                        {message
+                          .payload
+                          ?.sticker ||
+                          message.content}
+                      </Text>
+                    ) : message.kind ===
+                      "catalogue" ? (
+                      <Flex
+                        direction="column"
+                        gap={2}
+                        minW="200px"
+                      >
+                        {message
+                          .payload
+                          ?.imageUrl && (
+                          <Image
+                            src={secureUrl(
+                              message
+                                .payload
+                                .imageUrl
+                            )}
+                            alt={
+                              message
+                                .payload
+                                ?.name ||
+                              "Catalogue item"
+                            }
+                            maxW="260px"
+                            maxH="180px"
+                            objectFit="cover"
+                            borderRadius="md"
+                          />
+                        )}
+
+                        <Text fontWeight="semibold">
+                          {message
+                            .payload
+                            ?.name ||
+                            message.content}
+                        </Text>
+
+                        {message
+                          .payload
+                          ?.price && (
+                          <Text
+                            fontSize="sm"
+                            fontWeight="bold"
+                          >
+                            {
+                              message
+                                .payload
+                                .price
+                            }
+                          </Text>
+                        )}
+
+                        {message
+                          .payload
+                          ?.description && (
+                          <Text fontSize="sm">
+                            {
+                              message
+                                .payload
+                                .description
+                            }
+                          </Text>
+                        )}
+                      </Flex>
+                    ) : (
+                      <Text
+                        fontSize="sm"
+                        whiteSpace="pre-wrap"
+                        wordBreak="break-word"
+                      >
+                        {message.content}
+                      </Text>
+                    )}
+
+                    {/* TIME */}
+
+                    {(message.createdAt ||
+                      message.updatedAt) && (
+                      <Text
+                        fontSize="9px"
+                        textAlign="right"
+                        mt={1}
+                        opacity={0.7}
+                      >
+                        {message.pending
+                          ? "Sending..."
+                          : new Date(
+                              message.createdAt ||
+                                message.updatedAt
+                            ).toLocaleTimeString(
+                              [],
+                              {
+                                hour: "2-digit",
+                                minute:
+                                  "2-digit",
+                              }
+                            )}
+                      </Text>
+                    )}
+
+                    {/* REACTIONS */}
+
+                    {Array.isArray(
+                      message.reactions
+                    ) &&
+                      message.reactions
+                        .length > 0 && (
+                        <Flex
+                          mt={2}
+                          gap={1}
+                          wrap="wrap"
+                        >
+                          {Object.entries(
+                            message.reactions.reduce(
+                              (
+                                groups,
+                                reaction
+                              ) => {
+                                const reactionUserId =
+                                  typeof reaction.user ===
+                                  "object"
+                                    ? reaction
+                                        .user
+                                        ?._id
+                                    : reaction.user;
+
+                                if (
+                                  !groups[
+                                    reaction
+                                      .emoji
+                                  ]
+                                ) {
+                                  groups[
+                                    reaction
+                                      .emoji
+                                  ] = {
+                                    count: 0,
+                                    selected:
+                                      false,
+                                  };
+                                }
+
+                                groups[
+                                  reaction
+                                    .emoji
+                                ].count +=
+                                  1;
+
+                                if (
+                                  getId(
+                                    reactionUserId
+                                  ) ===
+                                  getId(
+                                    user?._id
+                                  )
+                                ) {
+                                  groups[
+                                    reaction
+                                      .emoji
+                                  ].selected =
+                                    true;
+                                }
+
+                                return groups;
+                              },
+                              {}
+                            )
+                          ).map(
+                            ([
+                              emoji,
+                              reaction,
+                            ]) => (
                               <Button
                                 key={emoji}
                                 type="button"
-                                aria-label={`React with ${emoji}`}
-                                title={`React with ${emoji}`}
-                                variant="ghost"
-                                size="sm"
-                                minW="36px"
-                                h="36px"
-                                px={1}
-                                fontSize="lg"
+                                size="xs"
+                                h="24px"
+                                minW="32px"
+                                px={2}
+                                borderRadius="full"
+                                colorScheme={
+                                  reaction.selected
+                                    ? "blue"
+                                    : "gray"
+                                }
+                                variant={
+                                  reaction.selected
+                                    ? "solid"
+                                    : "outline"
+                                }
                                 isDisabled={
                                   reactingMessageId ===
                                   message._id
@@ -2257,495 +3174,26 @@ const SingleChats = ({
                                   )
                                 }
                               >
-                                {emoji}
+                                {emoji}{" "}
+                                {
+                                  reaction.count
+                                }
                               </Button>
                             )
                           )}
                         </Flex>
-                      </PopoverBody>
-                    </PopoverContent>
-                  </Popover>
-
-                  {/* MENU */}
-
-                  <Menu placement="bottom">
-                    <MenuButton
-                      as={IconButton}
-                      icon={
-                        <ChevronDownIcon />
-                      }
-                      aria-label="Message options"
-                      variant="ghost"
-                      size="xs"
-                      minW="30px"
-                      h="30px"
-                    />
-
-                    <MenuList fontSize="sm">
-                      <MenuItem
-                        icon={
-                          <ArrowBackIcon />
-                        }
-                        onClick={() =>
-                          startReply(
-                            message
-                          )
-                        }
-                      >
-                        Reply
-                      </MenuItem>
-
-                      <MenuItem
-                        icon={<CopyIcon />}
-                        onClick={() =>
-                          copyMessage(
-                            message.content
-                          )
-                        }
-                      >
-                        Copy
-                      </MenuItem>
-
-                      <MenuItem
-                        icon={<DeleteIcon />}
-                        onClick={() =>
-                          deleteMessageForMe(message._id)
-                        }
-                      >
-                        Delete for me
-                      </MenuItem>
-                      {isMyMessage && (
-                        <>
-                          <MenuItem
-                            icon={<DeleteIcon />}
-                            color="red.500"
-                            onClick={() =>
-                              deleteMessage(message._id, "everyone")
-                            }
-                          >
-                            Delete for everyone
-                          </MenuItem>
-                          <MenuItem
-                            icon={<DeleteIcon />}
-                            color="red.600"
-                            onClick={() =>
-                              deleteMessage(message._id, "unsend")
-                            }
-                          >
-                            Unsend
-                          </MenuItem>
-                        </>
                       )}
-                    </MenuList>
-                  </Menu>
+                  </Box>
                 </Flex>
-
-                {/* MESSAGE BUBBLE */}
-
-                <Box
-                  onClick={() =>
-                    setActiveMessageActionsId(
-                      (currentId) =>
-                        currentId ===
-                        message._id
-                          ? null
-                          : message._id
-                    )
-                  }
-                  maxWidth={{
-                    base: "80%",
-                    md: "65%",
-                  }}
-                  bg={
-                    isMyMessage
-                      ? "blue.500"
-                      : "white"
-                  }
-                  color={
-                    isMyMessage
-                      ? "white"
-                      : "gray.800"
-                  }
-                  px={4}
-                  py={2}
-                  borderRadius="lg"
-                  boxShadow="sm"
-                  border={
-                    isMyMessage
-                      ? "none"
-                      : "1px solid"
-                  }
-                  borderColor={
-                    isMyMessage
-                      ? "transparent"
-                      : "gray.200"
-                  }
-                >
-                  {/* REPLY PREVIEW */}
-
-                  {message.replyTo && (
-                    <Box
-                      mb={2}
-                      px={2}
-                      py={1}
-                      borderLeft="3px solid"
-                      borderColor={
-                        isMyMessage
-                          ? "blue.100"
-                          : "blue.400"
-                      }
-                      bg={
-                        isMyMessage
-                          ? "whiteAlpha.200"
-                          : "gray.100"
-                      }
-                      borderRadius="sm"
-                    >
-                      <Text
-                        fontSize="xs"
-                        fontWeight="semibold"
-                        noOfLines={1}
-                      >
-                        {message.replyTo
-                          ?.sender
-                          ?.name ||
-                          "Reply"}
-                      </Text>
-
-                      <Text
-                        fontSize="xs"
-                        noOfLines={2}
-                        opacity={0.85}
-                      >
-                        {
-                          message.replyTo
-                            ?.content
-                        }
-                      </Text>
-                    </Box>
-                  )}
-
-                  {/* GROUP SENDER */}
-
-                  {selectedChat.isGroupChat &&
-                    !isMyMessage &&
-                    message.sender?.name && (
-                      <Text
-                        fontSize="xs"
-                        fontWeight="bold"
-                        mb={1}
-                        color="blue.500"
-                      >
-                        {
-                          message.sender
-                            .name
-                        }
-                      </Text>
-                    )}
-
-                  {/* MESSAGE */}
-
-                  {message.unsent || message.deletedForEveryone ? (
-                    <Text
-                      fontSize="sm"
-                      fontStyle="italic"
-                      color="gray.500"
-                    >
-                      {message.unsent
-                        ? isMyMessage
-                          ? "You unsent this message"
-                          : "This message was unsent"
-                        : isMyMessage
-                          ? "You deleted this message"
-                          : "This message was deleted"}
-                    </Text>
-                  ) : message.kind === "file" && message.payload?.url ? (
-                    <Flex direction="column" gap={2}>
-                      {message.payload.mimeType?.startsWith("image/") ? (
-                        <Image
-                          src={message.payload.url}
-                          alt={message.payload.name || "Shared image"}
-                          maxW="280px"
-                          maxH="280px"
-                          objectFit="cover"
-                          borderRadius="md"
-                        />
-                      ) : message.payload.mimeType?.startsWith("video/") ? (
-                        <Box
-                          as="video"
-                          src={message.payload.url}
-                          controls
-                          maxW="300px"
-                          borderRadius="md"
-                        />
-                      ) : message.payload.mimeType?.startsWith("audio/") ? (
-                        <Box as="audio" src={message.payload.url} controls />
-                      ) : null}
-                      <Link
-                        href={message.payload.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        color={isMyMessage ? "white" : "blue.600"}
-                        textDecoration="underline"
-                      >
-                        {message.payload.name || message.content || "Open attachment"}
-                      </Link>
-                    </Flex>
-                  ) : message.kind === "contact" ? (
-                    <Flex alignItems="center" gap={3} minW="190px">
-                      <Avatar
-                        size="sm"
-                        name={message.payload?.name || "Contact"}
-                        src={message.payload?.pic || undefined}
-                      />
-                      <Box minW={0}>
-                        <Text fontWeight="semibold" noOfLines={1}>
-                          {message.payload?.name || "Contact"}
-                        </Text>
-                        <Text fontSize="xs" opacity={0.8} noOfLines={1}>
-                          {message.payload?.email || ""}
-                        </Text>
-                      </Box>
-                    </Flex>
-                  ) : message.kind === "poll" ? (
-                    <Box minW="220px">
-                      <Text fontWeight="semibold" mb={2}>
-                        {message.payload?.question || message.content}
-                      </Text>
-                      <Flex direction="column" gap={2}>
-                        {(message.payload?.options || []).map((option, index) => {
-                          const votes = Array.isArray(option.votes) ? option.votes : [];
-                          const selected = votes.some((voterId) => getId(voterId) === getId(user?._id));
-                          const totalVotes = (message.payload?.options || []).reduce(
-                            (total, pollOption) => total + (pollOption.votes?.length || 0),
-                            0
-                          );
-                          return (
-                            <Button
-                              key={`${option.label}-${index}`}
-                              size="sm"
-                              justifyContent="space-between"
-                              colorScheme={selected ? "blue" : "gray"}
-                              variant={selected ? "solid" : "outline"}
-                              onClick={() => sendPollVote(message, index)}
-                            >
-                              <Text noOfLines={1}>{option.label}</Text>
-                              <Text ml={3} fontSize="xs">
-                                {votes.length}{totalVotes ? ` / ${totalVotes}` : ""}
-                              </Text>
-                            </Button>
-                          );
-                        })}
-                      </Flex>
-                    </Box>
-                  ) : message.kind === "event" ? (
-                    <Box minW="200px">
-                      <Flex alignItems="center" gap={2} mb={1}>
-                        <CalendarIcon />
-                        <Text fontWeight="semibold">{message.payload?.title || message.content}</Text>
-                      </Flex>
-                      {message.payload?.date && (
-                        <Text fontSize="xs">
-                          {new Date(message.payload.date).toLocaleString()}
-                        </Text>
-                      )}
-                      {message.payload?.description && (
-                        <Text fontSize="sm" mt={1}>
-                          {message.payload.description}
-                        </Text>
-                      )}
-                    </Box>
-                  ) : message.kind === "sticker" ? (
-                    <Text fontSize="5xl" lineHeight="1.1">
-                      {message.payload?.sticker || message.content}
-                    </Text>
-                  ) : message.kind === "catalogue" ? (
-                    <Flex direction="column" gap={2} minW="200px">
-                      {message.payload?.imageUrl && (
-                        <Image
-                          src={message.payload.imageUrl}
-                          alt={message.payload?.name || "Catalogue item"}
-                          maxW="260px"
-                          maxH="180px"
-                          objectFit="cover"
-                          borderRadius="md"
-                        />
-                      )}
-                      <Text fontWeight="semibold">
-                        {message.payload?.name || message.content}
-                      </Text>
-                      {message.payload?.price && (
-                        <Text fontSize="sm" fontWeight="bold">
-                          {message.payload.price}
-                        </Text>
-                      )}
-                      {message.payload?.description && (
-                        <Text fontSize="sm">
-                          {message.payload.description}
-                        </Text>
-                      )}
-                    </Flex>
-                  ) : (
-                    <Text
-                      fontSize="sm"
-                      whiteSpace="pre-wrap"
-                      wordBreak="break-word"
-                    >
-                      {message.content}
-                    </Text>
-                  )}
-
-                  {/* TIME */}
-
-                  {(message.createdAt ||
-                    message.updatedAt) && (
-                    <Text
-                      fontSize="9px"
-                      textAlign="right"
-                      mt={1}
-                      opacity={0.7}
-                    >
-                      {message.pending
-                        ? "Sending..."
-                        : new Date(
-                            message.createdAt ||
-                              message.updatedAt
-                          ).toLocaleTimeString(
-                            [],
-                            {
-                              hour: "2-digit",
-                              minute:
-                                "2-digit",
-                            }
-                          )}
-                    </Text>
-                  )}
-
-                  {/* REACTIONS */}
-
-                  {Array.isArray(
-                    message.reactions
-                  ) &&
-                    message.reactions
-                      .length > 0 && (
-                      <Flex
-                        mt={2}
-                        gap={1}
-                        wrap="wrap"
-                      >
-                        {Object.entries(
-                          message.reactions.reduce(
-                            (
-                              groups,
-                              reaction
-                            ) => {
-                              const reactionUserId =
-                                typeof reaction.user ===
-                                "object"
-                                  ? reaction
-                                      .user?._id
-                                  : reaction.user;
-
-                              if (
-                                !groups[
-                                  reaction
-                                    .emoji
-                                ]
-                              ) {
-                                groups[
-                                  reaction
-                                    .emoji
-                                ] = {
-                                  count: 0,
-                                  selected:
-                                    false,
-                                };
-                              }
-
-                              groups[
-                                reaction
-                                  .emoji
-                              ].count +=
-                                1;
-
-                              if (
-                                getId(
-                                  reactionUserId
-                                ) ===
-                                getId(
-                                  user?._id
-                                )
-                              ) {
-                                groups[
-                                  reaction
-                                    .emoji
-                                ].selected =
-                                  true;
-                              }
-
-                              return groups;
-                            },
-                            {}
-                          )
-                        ).map(
-                          ([
-                            emoji,
-                            reaction,
-                          ]) => (
-                            <Button
-                              key={emoji}
-                              type="button"
-                              size="xs"
-                              h="24px"
-                              minW="32px"
-                              px={2}
-                              borderRadius="full"
-                              colorScheme={
-                                reaction.selected
-                                  ? "blue"
-                                  : "gray"
-                              }
-                              variant={
-                                reaction.selected
-                                  ? "solid"
-                                  : "outline"
-                              }
-                              isDisabled={
-                                reactingMessageId ===
-                                message._id
-                              }
-                              onClick={() =>
-                                reactToMessage(
-                                  message._id,
-                                  emoji
-                                )
-                              }
-                            >
-                              {emoji}{" "}
-                              {
-                                reaction.count
-                              }
-                            </Button>
-                          )
-                        )}
-                      </Flex>
-                    )}
-                </Box>
-              </Flex>
-            );
-          })
+              );
+            }
+          )
         )}
 
-        {/* SCROLL */}
-
-        <div
-          ref={messagesEndRef}
-        />
+        <div ref={messagesEndRef} />
       </Box>
 
-      {/* =====================================
-          INPUT AREA
-      ====================================== */}
+      {/* INPUT AREA */}
 
       <Box
         p={3}
@@ -2800,7 +3248,7 @@ const SingleChats = ({
           </Flex>
         )}
 
-        {/* TYPING INDICATOR */}
+        {/* TYPING */}
 
         {isTyping && (
           <Flex
@@ -2830,73 +3278,193 @@ const SingleChats = ({
 
         {/* INPUT */}
 
-        <Flex gap={2} alignItems="center">
+        <Flex
+          gap={2}
+          alignItems="center"
+        >
           <Menu placement="top-start">
             <MenuButton
               as={IconButton}
-              icon={<AttachmentIcon />}
+              icon={
+                <AttachmentIcon />
+              }
               aria-label="Attach or share"
               title="Attach or share"
               variant="ghost"
               borderRadius="full"
-              isLoading={uploadingAttachment}
-              isDisabled={uploadingAttachment || sending}
+              isLoading={
+                uploadingAttachment
+              }
+              isDisabled={
+                uploadingAttachment ||
+                sending
+              }
             />
-            <MenuList maxH="70vh" overflowY="auto" minW="220px">
-              <MenuItem icon={<AttachmentIcon />} onClick={() => documentInputRef.current?.click()}>
+
+            <MenuList
+              maxH="70vh"
+              overflowY="auto"
+              minW="220px"
+            >
+              <MenuItem
+                icon={
+                  <AttachmentIcon />
+                }
+                onClick={() =>
+                  documentInputRef.current?.click()
+                }
+              >
                 Document
               </MenuItem>
-              <MenuItem icon={<ViewIcon />} onClick={() => mediaInputRef.current?.click()}>
+
+              <MenuItem
+                icon={
+                  <ViewIcon />
+                }
+                onClick={() =>
+                  mediaInputRef.current?.click()
+                }
+              >
                 Photos &amp; videos
               </MenuItem>
-              <MenuItem icon={<PhoneIcon />} onClick={() => cameraInputRef.current?.click()}>
+
+              <MenuItem
+                icon={
+                  <PhoneIcon />
+                }
+                onClick={() =>
+                  cameraInputRef.current?.click()
+                }
+              >
                 Camera
               </MenuItem>
-              <MenuItem icon={<AttachmentIcon />} onClick={() => audioInputRef.current?.click()}>
+
+              <MenuItem
+                icon={
+                  <AttachmentIcon />
+                }
+                onClick={() =>
+                  audioInputRef.current?.click()
+                }
+              >
                 Audio
               </MenuItem>
-              <MenuItem icon={<EmailIcon />} onClick={sendContactCard}>
+
+              <MenuItem
+                icon={
+                  <EmailIcon />
+                }
+                onClick={
+                  sendContactCard
+                }
+              >
                 Contact
               </MenuItem>
-              <MenuItem icon={<InfoIcon />} onClick={() => setAttachmentDialog("poll")}>
+
+              <MenuItem
+                icon={
+                  <InfoIcon />
+                }
+                onClick={() =>
+                  setAttachmentDialog(
+                    "poll"
+                  )
+                }
+              >
                 Poll
               </MenuItem>
-              <MenuItem icon={<CalendarIcon />} onClick={() => setAttachmentDialog("event")}>
+
+              <MenuItem
+                icon={
+                  <CalendarIcon />
+                }
+                onClick={() =>
+                  setAttachmentDialog(
+                    "event"
+                  )
+                }
+              >
                 Event
               </MenuItem>
-              <MenuItem icon={<StarIcon />} onClick={() => setAttachmentDialog("sticker")}>
+
+              <MenuItem
+                icon={
+                  <StarIcon />
+                }
+                onClick={() =>
+                  setAttachmentDialog(
+                    "sticker"
+                  )
+                }
+              >
                 New sticker
               </MenuItem>
-              <MenuItem icon={<ViewIcon />} onClick={() => setAttachmentDialog("catalogue")}>
+
+              <MenuItem
+                icon={
+                  <ViewIcon />
+                }
+                onClick={() =>
+                  setAttachmentDialog(
+                    "catalogue"
+                  )
+                }
+              >
                 Catalogue
               </MenuItem>
-              <MenuItem icon={<ChatIcon />} onClick={() => setAttachmentDialog("quickReplies")}>
+
+              <MenuItem
+                icon={
+                  <ChatIcon />
+                }
+                onClick={() =>
+                  setAttachmentDialog(
+                    "quickReplies"
+                  )
+                }
+              >
                 Quick replies
               </MenuItem>
             </MenuList>
           </Menu>
+
+          {/* FILE INPUTS */}
 
           <Input
             ref={documentInputRef}
             type="file"
             display="none"
             onChange={(event) => {
-              const file = event.target.files?.[0];
+              const file =
+                event.target.files?.[0];
+
               event.target.value = "";
-              uploadAttachment(file, "document");
+
+              uploadAttachment(
+                file,
+                "document"
+              );
             }}
           />
+
           <Input
             ref={mediaInputRef}
             type="file"
             accept="image/*,video/*"
             display="none"
             onChange={(event) => {
-              const file = event.target.files?.[0];
+              const file =
+                event.target.files?.[0];
+
               event.target.value = "";
-              uploadAttachment(file, "media");
+
+              uploadAttachment(
+                file,
+                "media"
+              );
             }}
           />
+
           <Input
             ref={cameraInputRef}
             type="file"
@@ -2904,22 +3472,37 @@ const SingleChats = ({
             capture="environment"
             display="none"
             onChange={(event) => {
-              const file = event.target.files?.[0];
+              const file =
+                event.target.files?.[0];
+
               event.target.value = "";
-              uploadAttachment(file, "camera");
+
+              uploadAttachment(
+                file,
+                "camera"
+              );
             }}
           />
+
           <Input
             ref={audioInputRef}
             type="file"
             accept="audio/*"
             display="none"
             onChange={(event) => {
-              const file = event.target.files?.[0];
+              const file =
+                event.target.files?.[0];
+
               event.target.value = "";
-              uploadAttachment(file, "audio");
+
+              uploadAttachment(
+                file,
+                "audio"
+              );
             }}
           />
+
+          {/* MESSAGE INPUT */}
 
           <Input
             ref={messageInputRef}
@@ -2928,7 +3511,9 @@ const SingleChats = ({
             onChange={
               handleMessageTyping
             }
-            onKeyDown={handleKeyDown}
+            onKeyDown={
+              handleKeyDown
+            }
             disabled={sending}
             autoComplete="off"
           />
@@ -2937,17 +3522,26 @@ const SingleChats = ({
             type="button"
             aria-label="Send message"
             title="Send message"
-            icon={<ArrowForwardIcon />}
-            onClick={() => sendMessage()}
+            icon={
+              <ArrowForwardIcon />
+            }
+            onClick={() =>
+              sendMessage()
+            }
             isLoading={sending}
-            isDisabled={!newMessage.trim() || uploadingAttachment}
+            isDisabled={
+              !newMessage.trim() ||
+              uploadingAttachment
+            }
             width="48px"
             minWidth="48px"
             height="48px"
             borderRadius="full"
             bg="black"
             color="white"
-            _hover={{ bg: "gray.800" }}
+            _hover={{
+              bg: "gray.800",
+            }}
             _disabled={{
               bg: "gray.300",
               color: "white",
@@ -2956,53 +3550,125 @@ const SingleChats = ({
           />
         </Flex>
 
+        {/* ATTACHMENT MODAL */}
+
         <Modal
-          isOpen={Boolean(attachmentDialog)}
-          onClose={() => setAttachmentDialog(null)}
+          isOpen={Boolean(
+            attachmentDialog
+          )}
+          onClose={() =>
+            setAttachmentDialog(
+              null
+            )
+          }
           isCentered
-          size={attachmentDialog === "sticker" || attachmentDialog === "quickReplies" ? "sm" : "md"}
+          size={
+            attachmentDialog ===
+              "sticker" ||
+            attachmentDialog ===
+              "quickReplies"
+              ? "sm"
+              : "md"
+          }
         >
           <ModalOverlay />
+
           <ModalContent>
             <ModalHeader>
-              {attachmentDialog === "poll"
+              {attachmentDialog ===
+              "poll"
                 ? "Create poll"
-                : attachmentDialog === "event"
+                : attachmentDialog ===
+                    "event"
                   ? "Create event"
-                  : attachmentDialog === "catalogue"
+                  : attachmentDialog ===
+                      "catalogue"
                     ? "Share catalogue item"
-                    : attachmentDialog === "sticker"
+                    : attachmentDialog ===
+                        "sticker"
                       ? "Choose a sticker"
                       : "Quick replies"}
             </ModalHeader>
+
             <ModalCloseButton />
+
             <ModalBody>
-              {attachmentDialog === "poll" && (
-                <Flex direction="column" gap={3}>
+              {/* POLL */}
+
+              {attachmentDialog ===
+                "poll" && (
+                <Flex
+                  direction="column"
+                  gap={3}
+                >
                   <Input
                     placeholder="Ask a question"
-                    value={pollQuestion}
-                    onChange={(event) => setPollQuestion(event.target.value)}
+                    value={
+                      pollQuestion
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setPollQuestion(
+                        event.target
+                          .value
+                      )
+                    }
                   />
-                  {pollOptions.map((option, index) => (
-                    <Input
-                      key={index}
-                      placeholder={`Option ${index + 1}`}
-                      value={option}
-                      onChange={(event) =>
-                        setPollOptions((current) =>
-                          current.map((value, optionIndex) =>
-                            optionIndex === index ? event.target.value : value
+
+                  {pollOptions.map(
+                    (
+                      option,
+                      index
+                    ) => (
+                      <Input
+                        key={index}
+                        placeholder={`Option ${
+                          index + 1
+                        }`}
+                        value={
+                          option
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setPollOptions(
+                            (
+                              current
+                            ) =>
+                              current.map(
+                                (
+                                  value,
+                                  optionIndex
+                                ) =>
+                                  optionIndex ===
+                                  index
+                                    ? event
+                                        .target
+                                        .value
+                                    : value
+                              )
                           )
-                        )
-                      }
-                    />
-                  ))}
-                  {pollOptions.length < 5 && (
+                        }
+                      />
+                    )
+                  )}
+
+                  {pollOptions.length <
+                    5 && (
                     <Button
                       variant="ghost"
                       alignSelf="flex-start"
-                      onClick={() => setPollOptions((current) => [...current, ""])}
+                      onClick={() =>
+                        setPollOptions(
+                          (
+                            current
+                          ) => [
+                            ...current,
+                            "",
+                          ]
+                        )
+                      }
                     >
                       Add option
                     </Button>
@@ -3010,98 +3676,257 @@ const SingleChats = ({
                 </Flex>
               )}
 
-              {attachmentDialog === "event" && (
-                <Flex direction="column" gap={3}>
+              {/* EVENT */}
+
+              {attachmentDialog ===
+                "event" && (
+                <Flex
+                  direction="column"
+                  gap={3}
+                >
                   <Input
                     placeholder="Event title"
-                    value={eventTitle}
-                    onChange={(event) => setEventTitle(event.target.value)}
+                    value={
+                      eventTitle
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setEventTitle(
+                        event.target
+                          .value
+                      )
+                    }
                   />
+
                   <Input
                     type="datetime-local"
-                    value={eventDate}
-                    onChange={(event) => setEventDate(event.target.value)}
+                    value={
+                      eventDate
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setEventDate(
+                        event.target
+                          .value
+                      )
+                    }
                   />
+
                   <Textarea
                     placeholder="Details (optional)"
-                    value={eventDescription}
-                    onChange={(event) => setEventDescription(event.target.value)}
+                    value={
+                      eventDescription
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setEventDescription(
+                        event.target
+                          .value
+                      )
+                    }
                   />
                 </Flex>
               )}
 
-              {attachmentDialog === "catalogue" && (
-                <Flex direction="column" gap={3}>
+              {/* CATALOGUE */}
+
+              {attachmentDialog ===
+                "catalogue" && (
+                <Flex
+                  direction="column"
+                  gap={3}
+                >
                   <Input
                     placeholder="Product or service name"
-                    value={catalogueName}
-                    onChange={(event) => setCatalogueName(event.target.value)}
+                    value={
+                      catalogueName
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setCatalogueName(
+                        event.target
+                          .value
+                      )
+                    }
                   />
+
                   <Input
                     placeholder="Price (optional)"
-                    value={cataloguePrice}
-                    onChange={(event) => setCataloguePrice(event.target.value)}
+                    value={
+                      cataloguePrice
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setCataloguePrice(
+                        event.target
+                          .value
+                      )
+                    }
                   />
+
                   <Textarea
                     placeholder="Description (optional)"
-                    value={catalogueDescription}
-                    onChange={(event) => setCatalogueDescription(event.target.value)}
+                    value={
+                      catalogueDescription
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setCatalogueDescription(
+                        event.target
+                          .value
+                      )
+                    }
                   />
+
                   <Input
                     placeholder="Image URL (optional)"
-                    value={catalogueImageUrl}
-                    onChange={(event) => setCatalogueImageUrl(event.target.value)}
+                    value={
+                      catalogueImageUrl
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setCatalogueImageUrl(
+                        event.target
+                          .value
+                      )
+                    }
                   />
                 </Flex>
               )}
 
-              {attachmentDialog === "sticker" && (
-                <Flex wrap="wrap" gap={2} justifyContent="center">
-                  {["✨", "🎉", "💛", "🌟", "😂", "🙌", "🌈", "🫶"].map((sticker) => (
-                    <Button
-                      key={sticker}
-                      fontSize="2xl"
-                      variant="ghost"
-                      onClick={() => {
-                        sendMessage({
-                          kind: "sticker",
-                          content: sticker,
-                          payload: { sticker },
-                        });
-                        setAttachmentDialog(null);
-                      }}
-                    >
-                      {sticker}
-                    </Button>
-                  ))}
+              {/* STICKER */}
+
+              {attachmentDialog ===
+                "sticker" && (
+                <Flex
+                  wrap="wrap"
+                  gap={2}
+                  justifyContent="center"
+                >
+                  {[
+                    "✨",
+                    "🎉",
+                    "💛",
+                    "🌟",
+                    "😂",
+                    "🙌",
+                    "🌈",
+                    "🫶",
+                  ].map(
+                    (
+                      sticker
+                    ) => (
+                      <Button
+                        key={
+                          sticker
+                        }
+                        fontSize="2xl"
+                        variant="ghost"
+                        onClick={() => {
+                          sendMessage(
+                            {
+                              kind: "sticker",
+                              content:
+                                sticker,
+                              payload: {
+                                sticker,
+                              },
+                            }
+                          );
+
+                          setAttachmentDialog(
+                            null
+                          );
+                        }}
+                      >
+                        {
+                          sticker
+                        }
+                      </Button>
+                    )
+                  )}
                 </Flex>
               )}
 
-              {attachmentDialog === "quickReplies" && (
-                <Flex direction="column" gap={2}>
-                  {["Thanks!", "I’ll get back to you.", "On my way.", "Can we talk later?"].map((reply) => (
-                    <Button
-                      key={reply}
-                      variant="outline"
-                      justifyContent="flex-start"
-                      onClick={() => {
-                        sendMessage({ content: reply });
-                        setAttachmentDialog(null);
-                      }}
-                    >
-                      {reply}
-                    </Button>
-                  ))}
+              {/* QUICK REPLIES */}
+
+              {attachmentDialog ===
+                "quickReplies" && (
+                <Flex
+                  direction="column"
+                  gap={2}
+                >
+                  {[
+                    "Thanks!",
+                    "I’ll get back to you.",
+                    "On my way.",
+                    "Can we talk later?",
+                  ].map(
+                    (
+                      reply
+                    ) => (
+                      <Button
+                        key={
+                          reply
+                        }
+                        variant="outline"
+                        justifyContent="flex-start"
+                        onClick={() => {
+                          sendMessage(
+                            {
+                              content:
+                                reply,
+                            }
+                          );
+
+                          setAttachmentDialog(
+                            null
+                          );
+                        }}
+                      >
+                        {
+                          reply
+                        }
+                      </Button>
+                    )
+                  )}
                 </Flex>
               )}
             </ModalBody>
 
-            {["poll", "event", "catalogue"].includes(attachmentDialog) && (
+            {[
+              "poll",
+              "event",
+              "catalogue",
+            ].includes(
+              attachmentDialog
+            ) && (
               <ModalFooter>
-                <Button mr={3} variant="ghost" onClick={() => setAttachmentDialog(null)}>
+                <Button
+                  mr={3}
+                  variant="ghost"
+                  onClick={() =>
+                    setAttachmentDialog(
+                      null
+                    )
+                  }
+                >
                   Cancel
                 </Button>
-                <Button colorScheme="blue" onClick={submitAttachmentDialog}>
+
+                <Button
+                  colorScheme="blue"
+                  onClick={
+                    submitAttachmentDialog
+                  }
+                >
                   Send
                 </Button>
               </ModalFooter>
@@ -3114,4 +3939,3 @@ const SingleChats = ({
 };
 
 export default SingleChats;
-
