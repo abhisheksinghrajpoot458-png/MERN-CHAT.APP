@@ -179,7 +179,7 @@ const Login = () => {
       };
 
       const { data } = await axios.post(
-        `{$API_URL}/api/user/login`,
+        `${API_URL}/api/user/login`,
         {
           email,
           password,
