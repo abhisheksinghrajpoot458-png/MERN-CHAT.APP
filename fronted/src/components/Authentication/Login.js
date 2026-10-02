@@ -151,7 +151,10 @@ const Login = () => {
   const toast = useToast();
   const history = useHistory();
   const { setUser } = ChatState();
-
+// Backend API URL
+  const API_URL =
+    process.env.REACT_APP_API_URL ||
+    "https://mern-chat-app-3oqx.onrender.com";
   const submitHandler = async () => {
     setLoading(true);
 
@@ -176,7 +179,7 @@ const Login = () => {
       };
 
       const { data } = await axios.post(
-        "/api/user/login",
+        "{$REACT_APP_API_URL}/api/user/login",
         {
           email,
           password,
