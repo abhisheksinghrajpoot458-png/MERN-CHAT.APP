@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import axios from "axios";
 
@@ -27,16 +26,17 @@ import { ChatState } from "../../Context/ChatProvider";
 
 const GroupChatModal = ({ children }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const toast = useToast();
 
   const [groupChatName, setGroupChatName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [searchResult, setSearchResult] = useState([]);
   const [loading, setLoading] = useState(false);
-const API_URL =
+
+  const API_URL =
     process.env.REACT_APP_API_URL ||
     "https://mern-chat-app-3oqx.onrender.com";
-  const toast = useToast();
 
   const {
     user,
@@ -45,11 +45,27 @@ const API_URL =
     setSelectedChat,
   } = ChatState();
 
-  // Search users
+  // ========================================
+  // SEARCH USERS
+  // ========================================
+
   const handleSearch = async (query) => {
     setSearch(query);
 
-    if (!query) {
+    if (!query.trim()) {
+      setSearchResult([]);
+      return;
+    }
+
+    if (!user?.token) {
+      toast({
+        title: "Please login again",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom-left",
+      });
+
       setSearchResult([]);
       return;
     }
@@ -64,14 +80,31 @@ const API_URL =
       };
 
       const { data } = await axios.get(
-        `${API_URL}/api/user?search=${encodeURIComponent(query)}`,
+        `${API_URL}/api/user?search=${encodeURIComponent(
+          query.trim()
+        )}`,
         config
       );
 
-      setLoading(false);
-      setSearchResult(data);
+      // IMPORTANT:
+      // API response must be an array for .map()
+      if (Array.isArray(data)) {
+        setSearchResult(data);
+      } else if (Array.isArray(data?.users)) {
+        // Supports { users: [...] } response too
+        setSearchResult(data.users);
+      } else {
+        console.error(
+          "Unexpected user search response:",
+          data
+        );
+
+        setSearchResult([]);
+      }
     } catch (error) {
-      setLoading(false);
+      console.error("Search Error:", error);
+
+      setSearchResult([]);
 
       toast({
         title: "Error Occurred",
@@ -83,12 +116,26 @@ const API_URL =
         isClosable: true,
         position: "bottom-left",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Select user
+  // ========================================
+  // SELECT USER
+  // ========================================
+
   const handleGroup = (selectedUser) => {
-    if (selectedUsers.includes(selectedUser)) {
+    if (!selectedUser?._id) {
+      return;
+    }
+
+    // Check duplicate by ID instead of object reference
+    const alreadySelected = selectedUsers.some(
+      (user) => user._id === selectedUser._id
+    );
+
+    if (alreadySelected) {
       toast({
         title: "User already added",
         status: "warning",
@@ -100,21 +147,32 @@ const API_URL =
       return;
     }
 
-    setSelectedUsers([...selectedUsers, selectedUser]);
+    setSelectedUsers((prev) => [
+      ...prev,
+      selectedUser,
+    ]);
+
     setSearch("");
     setSearchResult([]);
   };
 
-  // Remove selected user
+  // ========================================
+  // DELETE SELECTED USER
+  // ========================================
+
   const handleDelete = (userToDelete) => {
-    setSelectedUsers(
-      selectedUsers.filter(
-        (selected) => selected._id !== userToDelete._id
+    setSelectedUsers((prev) =>
+      prev.filter(
+        (selected) =>
+          selected._id !== userToDelete._id
       )
     );
   };
 
-  // Create group chat
+  // ========================================
+  // CREATE GROUP CHAT
+  // ========================================
+
   const handleSubmit = async () => {
     if (!groupChatName.trim()) {
       toast({
@@ -124,6 +182,7 @@ const API_URL =
         isClosable: true,
         position: "top",
       });
+
       return;
     }
 
@@ -135,6 +194,19 @@ const API_URL =
         isClosable: true,
         position: "top",
       });
+
+      return;
+    }
+
+    if (!user?.token) {
+      toast({
+        title: "Please login again",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "top",
+      });
+
       return;
     }
 
@@ -143,22 +215,32 @@ const API_URL =
 
       const config = {
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${user.token}`,
         },
       };
 
+      const userIds = selectedUsers
+        .map((selectedUser) => selectedUser?._id)
+        .filter(Boolean);
+
       const { data } = await axios.post(
-       `${API_URL}/api/chat/group`,
+        `${API_URL}/api/chat/group`,
         {
-          name: groupChatName,
-          users: JSON.stringify(
-            selectedUsers.map((user) => user._id)
-          ),
+          name: groupChatName.trim(),
+          users: JSON.stringify(userIds),
         },
         config
       );
 
-      setChats([data, ...chats]);
+      // Safely update chats
+      setChats((prevChats) => [
+        data,
+        ...(Array.isArray(prevChats)
+          ? prevChats
+          : []),
+      ]);
+
       setSelectedChat(data);
 
       toast({
@@ -178,6 +260,11 @@ const API_URL =
 
       onClose();
     } catch (error) {
+      console.error(
+        "Create Group Chat Error:",
+        error
+      );
+
       toast({
         title: "Error Occurred",
         description:
@@ -193,9 +280,28 @@ const API_URL =
     }
   };
 
+  // ========================================
+  // CLOSE MODAL
+  // ========================================
+
+  const handleClose = () => {
+    if (!loading) {
+      setGroupChatName("");
+      setSelectedUsers([]);
+      setSearch("");
+      setSearchResult([]);
+      onClose();
+    }
+  };
+
+  // ========================================
+  // UI
+  // ========================================
+
   return (
     <>
-      {/* Open Modal */}
+      {/* OPEN MODAL */}
+
       <span
         onClick={onOpen}
         style={{ cursor: "pointer" }}
@@ -203,16 +309,19 @@ const API_URL =
         {children || "Open Modal"}
       </span>
 
-      {/* Modal */}
+      {/* MODAL */}
+
       <Modal
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={handleClose}
         isCentered
       >
         <ModalOverlay />
 
         <ModalContent>
-          <ModalHeader>Create Group Chat</ModalHeader>
+          <ModalHeader>
+            Create Group Chat
+          </ModalHeader>
 
           <ModalCloseButton />
 
@@ -221,18 +330,22 @@ const API_URL =
             flexDirection="column"
             alignItems="center"
           >
-            {/* Group Name */}
+            {/* GROUP NAME */}
+
             <FormControl mb={3}>
               <Input
                 placeholder="Chat Name"
                 value={groupChatName}
                 onChange={(e) =>
-                  setGroupChatName(e.target.value)
+                  setGroupChatName(
+                    e.target.value
+                  )
                 }
               />
             </FormControl>
 
-            {/* Selected Users */}
+            {/* SELECTED USERS */}
+
             <Box
               width="100%"
               display="flex"
@@ -240,77 +353,117 @@ const API_URL =
               gap={2}
               mb={3}
             >
-              {selectedUsers.map((user) => (
-                <Tag
-                  size="md"
-                  key={user._id}
-                  borderRadius="full"
-                  variant="solid"
-                  colorScheme="blue"
-                >
-                  <TagLabel>{user.name}</TagLabel>
+              {Array.isArray(selectedUsers) &&
+                selectedUsers.map(
+                  (selectedUser) => (
+                    <Tag
+                      size="md"
+                      key={selectedUser._id}
+                      borderRadius="full"
+                      variant="solid"
+                      colorScheme="blue"
+                    >
+                      <TagLabel>
+                        {selectedUser.name}
+                      </TagLabel>
 
-                  <TagCloseButton
-                    onClick={() => handleDelete(user)}
-                  />
-                </Tag>
-              ))}
+                      <TagCloseButton
+                        onClick={() =>
+                          handleDelete(
+                            selectedUser
+                          )
+                        }
+                      />
+                    </Tag>
+                  )
+                )}
             </Box>
 
-            {/* Search Users */}
+            {/* SEARCH USERS */}
+
             <FormControl>
               <Input
                 placeholder="Add Users eg: Abhi, Adarsh"
                 value={search}
                 onChange={(e) =>
-                  handleSearch(e.target.value)
+                  handleSearch(
+                    e.target.value
+                  )
                 }
               />
             </FormControl>
 
-            {/* Loading */}
+            {/* LOADING */}
+
             {loading && (
               <Box mt={3}>
                 <Spinner size="sm" />
               </Box>
             )}
 
-            {/* Search Results */}
-            {!loading && searchResult.length > 0 && (
-              <Box
-                width="100%"
-                mt={2}
-                border="1px solid"
-                borderColor="gray.200"
-                borderRadius="md"
-                maxHeight="180px"
-                overflowY="auto"
-              >
-                {searchResult.map((user) => (
-                  <Box
-                    key={user._id}
-                    p={3}
-                    cursor="pointer"
-                    _hover={{
-                      background: "gray.100",
-                    }}
-                    onClick={() => handleGroup(user)}
-                  >
-                    <Text fontWeight="600">
-                      {user.name}
-                    </Text>
+            {/* SEARCH RESULTS */}
 
-                    <Text
-                      fontSize="sm"
-                      color="gray.500"
-                    >
-                      {user.email}
-                    </Text>
-                  </Box>
-                ))}
-              </Box>
-            )}
+            {!loading &&
+              Array.isArray(searchResult) &&
+              searchResult.length > 0 && (
+                <Box
+                  width="100%"
+                  mt={2}
+                  border="1px solid"
+                  borderColor="gray.200"
+                  borderRadius="md"
+                  maxHeight="180px"
+                  overflowY="auto"
+                >
+                  {searchResult.map(
+                    (resultUser) => (
+                      <Box
+                        key={resultUser._id}
+                        p={3}
+                        cursor="pointer"
+                        _hover={{
+                          background:
+                            "gray.100",
+                        }}
+                        onClick={() =>
+                          handleGroup(
+                            resultUser
+                          )
+                        }
+                      >
+                        <Text fontWeight="600">
+                          {resultUser.name}
+                        </Text>
+
+                        <Text
+                          fontSize="sm"
+                          color="gray.500"
+                        >
+                          {resultUser.email}
+                        </Text>
+                      </Box>
+                    )
+                  )}
+                </Box>
+              )}
+
+            {/* NO RESULTS */}
+
+            {!loading &&
+              search.trim() &&
+              Array.isArray(searchResult) &&
+              searchResult.length === 0 && (
+                <Text
+                  mt={3}
+                  fontSize="sm"
+                  color="gray.500"
+                >
+                  No users found
+                </Text>
+              )}
           </ModalBody>
+
+          {/* FOOTER */}
 
           <ModalFooter>
             <Button
@@ -318,13 +471,15 @@ const API_URL =
               mr={3}
               onClick={handleSubmit}
               isLoading={loading}
+              loadingText="Creating..."
             >
               Create Chat
             </Button>
 
             <Button
               variant="ghost"
-              onClick={onClose}
+              onClick={handleClose}
+              isDisabled={loading}
             >
               Cancel
             </Button>
@@ -336,5 +491,3 @@ const API_URL =
 };
 
 export default GroupChatModal;
-
-
