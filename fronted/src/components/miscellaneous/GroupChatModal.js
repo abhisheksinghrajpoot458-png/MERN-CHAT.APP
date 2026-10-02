@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import axios from "axios";
 
@@ -41,9 +40,9 @@ const GroupChatModal = ({ children }) => {
 
   const toast = useToast();
 
+  // Removed unused "chats" variable.
   const {
     user,
-    chats,
     setChats,
     setSelectedChat,
   } = ChatState();
@@ -65,6 +64,7 @@ const GroupChatModal = ({ children }) => {
       const config = {
         headers: {
           Authorization: `Bearer ${user?.token}`,
+          "Content-Type": "application/json",
         },
       };
 
@@ -75,7 +75,6 @@ const GroupChatModal = ({ children }) => {
 
       console.log("User Search Response:", data);
 
-      // Make sure searchResult is always an array
       if (Array.isArray(data)) {
         setSearchResult(data);
       } else if (Array.isArray(data?.users)) {
@@ -85,6 +84,14 @@ const GroupChatModal = ({ children }) => {
       }
     } catch (error) {
       console.error("Search Users Error:", error);
+      console.error(
+        "Search Users Status:",
+        error?.response?.status
+      );
+      console.error(
+        "Search Users Response:",
+        error?.response?.data
+      );
 
       setSearchResult([]);
 
@@ -148,7 +155,6 @@ const GroupChatModal = ({ children }) => {
   // Create Group Chat
   // ==========================================
   const handleSubmit = async () => {
-    // Validate group name
     if (!groupChatName.trim()) {
       toast({
         title: "Please enter a group name",
@@ -161,7 +167,6 @@ const GroupChatModal = ({ children }) => {
       return;
     }
 
-    // Validate selected users
     if (selectedUsers.length < 2) {
       toast({
         title: "Please select at least 2 users",
@@ -176,19 +181,32 @@ const GroupChatModal = ({ children }) => {
       return;
     }
 
+    if (!user?.token) {
+      toast({
+        title: "Authentication required",
+        description:
+          "Please login again before creating a group chat.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top",
+      });
+
+      return;
+    }
+
     try {
       setLoading(true);
 
       const config = {
         headers: {
-          Authorization: `Bearer ${user?.token}`,
+          Authorization: `Bearer ${user.token}`,
           "Content-Type": "application/json",
         },
       };
 
       const requestData = {
         name: groupChatName.trim(),
-
         users: JSON.stringify(
           selectedUsers.map(
             (selectedUser) => selectedUser._id
@@ -197,6 +215,10 @@ const GroupChatModal = ({ children }) => {
       };
 
       console.log("Creating Group Chat:", requestData);
+      console.log(
+        "Group Chat API:",
+        `${API_URL}/api/chat/group`
+      );
 
       const { data } = await axios.post(
         `${API_URL}/api/chat/group`,
@@ -239,6 +261,16 @@ const GroupChatModal = ({ children }) => {
       console.error(
         "Create Group Chat Error:",
         error
+      );
+
+      console.error(
+        "Create Group Chat Status:",
+        error?.response?.status
+      );
+
+      console.error(
+        "Create Group Chat Response:",
+        error?.response?.data
       );
 
       toast({
@@ -302,9 +334,7 @@ const GroupChatModal = ({ children }) => {
             flexDirection="column"
             alignItems="center"
           >
-            {/* =====================================
-                Group Name
-            ====================================== */}
+            {/* Group Name */}
             <FormControl mb={3}>
               <Input
                 placeholder="Chat Name"
@@ -315,9 +345,7 @@ const GroupChatModal = ({ children }) => {
               />
             </FormControl>
 
-            {/* =====================================
-                Selected Users
-            ====================================== */}
+            {/* Selected Users */}
             <Box
               width="100%"
               display="flex"
@@ -347,9 +375,7 @@ const GroupChatModal = ({ children }) => {
                 ))}
             </Box>
 
-            {/* =====================================
-                Search Users
-            ====================================== */}
+            {/* Search Users */}
             <FormControl>
               <Input
                 placeholder="Add Users eg: Abhi, Adarsh"
@@ -360,18 +386,14 @@ const GroupChatModal = ({ children }) => {
               />
             </FormControl>
 
-            {/* =====================================
-                Loading
-            ====================================== */}
+            {/* Loading */}
             {loading && (
               <Box mt={3}>
                 <Spinner size="sm" />
               </Box>
             )}
 
-            {/* =====================================
-                Search Results
-            ====================================== */}
+            {/* Search Results */}
             {!loading &&
               Array.isArray(searchResult) &&
               searchResult.length > 0 && (
@@ -428,9 +450,7 @@ const GroupChatModal = ({ children }) => {
               )}
           </ModalBody>
 
-          {/* =====================================
-              Footer
-          ====================================== */}
+          {/* Footer */}
           <ModalFooter>
             <Button
               colorScheme="blue"
@@ -457,4 +477,3 @@ const GroupChatModal = ({ children }) => {
 };
 
 export default GroupChatModal;
-
