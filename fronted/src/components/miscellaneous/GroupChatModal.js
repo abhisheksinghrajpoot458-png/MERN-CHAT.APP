@@ -33,7 +33,9 @@ const GroupChatModal = ({ children }) => {
   const [search, setSearch] = useState("");
   const [searchResult, setSearchResult] = useState([]);
   const [loading, setLoading] = useState(false);
-
+const API_URL =
+    process.env.REACT_APP_API_URL ||
+    "https://mern-chat-app-3oqx.onrender.com";
   const toast = useToast();
 
   const {
@@ -62,7 +64,7 @@ const GroupChatModal = ({ children }) => {
       };
 
       const { data } = await axios.get(
-        `/api/user?search=${query}`,
+        `${API_URL}/api/user?search=${query}`,
         config
       );
 
