@@ -969,7 +969,7 @@ const SingleChats = ({
 
         const { data } =
           await axios.get(
-            `/api/message/${selectedChat._id}`,
+             `${API_URL}/api/message/${selectedChat._id}`,
             config
           );
 
@@ -1247,7 +1247,7 @@ const SingleChats = ({
 
       const { data } =
         await axios.post(
-          "/api/message",
+         `${API_URL}/api/message`,
           {
             content:
               messageText,
@@ -1520,7 +1520,7 @@ const SingleChats = ({
   const sendPollVote = async (message, optionIndex) => {
     try {
       const { data } = await axios.patch(
-        `/api/message/${message._id}/vote`,
+       `${API_URL}/api/message/${message._id}/vote`,
         { optionIndex },
         { headers: { Authorization: `Bearer ${user.token}` } }
       );
@@ -1683,7 +1683,7 @@ const SingleChats = ({
 
       const { data } =
         await axios.patch(
-          `/api/message/${messageId}/reactions`,
+          `${API_URL}/api/message/${messageId}/reactions`,
           { emoji },
           config
         );
@@ -1803,7 +1803,7 @@ const SingleChats = ({
 
     try {
       const { data } = await axios.delete(
-        `/api/message/${messageId}`,
+       `${API_URL}/api/message/${messageId}`,
         {
           data: { mode },
           headers: {
